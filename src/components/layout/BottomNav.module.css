@@ -3,7 +3,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: calc(70px + env(safe-area-inset-bottom));
+  height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
   background: var(--bg-card);
   border-top: 1px solid var(--border-subtle);
   display: flex;
@@ -11,6 +11,8 @@
   align-items: center;
   padding-bottom: env(safe-area-inset-bottom);
   z-index: 1000;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .link {
@@ -64,13 +66,4 @@
 
 .activeLink span {
   opacity: 1;
-}
-
-/* Glass effect if supported */
-@supports (backdrop-filter: blur(12px)) {
-  .bottomNav {
-    background: var(--glass-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-  }
 }

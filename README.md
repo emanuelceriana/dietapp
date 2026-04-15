@@ -15,6 +15,7 @@ NutriTrack is built as a React single-page app served by an Express API, with Su
 - 7-day nutrition statistics with charts
 - Profile-based daily calorie target calculation
 - Light and dark theme support
+- Progressive Web App metadata and service worker
 - Single-service production deployment for frontend and backend
 
 ## Tech Stack

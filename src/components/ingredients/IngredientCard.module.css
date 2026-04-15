@@ -1,5 +1,6 @@
 .card {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 12px;
   padding: 16px;
@@ -16,7 +17,7 @@
 }
 
 .info {
-  flex: 1;
+  min-width: 0;
 }
 
 .name {
@@ -24,6 +25,7 @@
   font-weight: 600;
   margin-bottom: 4px;
   color: var(--text-primary);
+  overflow-wrap: anywhere;
 }
 
 .meta {
@@ -35,9 +37,10 @@
 }
 
 .macros {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(42px, auto));
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin-right: 12px;
 }
 
@@ -45,7 +48,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 32px;
+  min-width: 0;
 }
 
 .macroValue {
@@ -53,6 +56,10 @@
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-primary);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: 1.2;
 }
 
 .macroLabel {
@@ -72,6 +79,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  justify-self: end;
 }
 
 .deleteBtn {
@@ -97,8 +105,48 @@
   opacity: 0.5;
 }
 
-@media (max-width: 400px) {
+@media (max-width: 520px) {
+  .card {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    padding: 14px;
+  }
+
+  .info {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .actions {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    gap: 6px;
+  }
+
   .macros {
-    display: none; /* Hide detailed macros on very small screens, or we can stack them */
+    grid-column: 1 / -1;
+    grid-row: 2;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+    margin: 12px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+    gap: 0;
+  }
+
+  .macro {
+    padding: 0 4px;
+  }
+
+  .macroDivider {
+    display: none;
+  }
+
+  .deleteBtn {
+    padding: 6px;
+  }
+
+  .arrow {
+    display: none;
   }
 }

@@ -3,7 +3,7 @@
   max-width: 600px;
   margin: 0 auto;
   position: relative;
-  min-height: calc(100vh - 70px);
+  min-height: calc(100svh - var(--bottom-nav-height));
 }
 
 .header {
@@ -23,8 +23,10 @@
 .searchContainer {
   margin-bottom: 2rem;
   position: sticky;
-  top: 10px;
+  top: 0;
   z-index: 10;
+  padding: 10px 0 12px;
+  background: var(--bg-primary);
 }
 
 .list {
@@ -41,7 +43,7 @@
 
 .fab {
   position: fixed;
-  bottom: calc(90px + env(safe-area-inset-bottom));
+  bottom: calc(var(--bottom-nav-height) + 20px + env(safe-area-inset-bottom));
   right: 1.5rem;
   width: 64px;
   height: 64px;
