@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useIngredients } from '../hooks/useIngredients';
+import { useAuth } from '../context/AuthContext';
 import IngredientCard from '../components/ingredients/IngredientCard';
 import SearchInput from '../components/ui/SearchInput';
 import { Plus } from 'lucide-react';
@@ -8,6 +9,7 @@ import IngredientForm from '../components/ingredients/IngredientForm';
 import styles from './IngredientsPage.module.css';
 
 const IngredientsPage = () => {
+  const { user } = useAuth();
   const { ingredients, isLoading, addIngredient, updateIngredient, deleteIngredient } = useIngredients();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,6 +25,10 @@ const IngredientsPage = () => {
   };
 
   const handleOpenEdit = (ingredient) => {
+    // Check ownership before allowing edit
+    const isOwner = ingredient.userId === user?.id || !ingredient.userId;
+    if (!isOwner) return; // Silent return or could show a toast
+    
     setEditingIngredient(ingredient);
     setIsModalOpen(true);
   };
@@ -73,6 +79,7 @@ const IngredientsPage = () => {
             <IngredientCard 
               key={ingredient.id} 
               ingredient={ingredient} 
+              currentUserId={user?.id}
               onClick={handleOpenEdit}
               onDelete={handleDeleteIngredient}
             />

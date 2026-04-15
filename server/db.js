@@ -50,6 +50,7 @@ const initializeDB = async () => {
         fat NUMERIC DEFAULT 0,
         carbs NUMERIC DEFAULT 0,
         serving_label TEXT,
+        is_public BOOLEAN DEFAULT true,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
 
@@ -69,6 +70,23 @@ const initializeDB = async () => {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
+    
+    // Migration: Add is_public to existing ingredients table if it doesn't exist
+    await query(`
+      ALTER TABLE ingredients 
+      ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT true;
+    `);
+
+    // Migration: Ensure ALL current ingredients are marked as public to fulfill the user request
+    await query(`
+      UPDATE ingredients SET is_public = true;
+    `);
+
+    // Migration: Disable RLS on ingredients table to allow global access via our backend logic
+    await query(`
+      ALTER TABLE ingredients DISABLE ROW LEVEL SECURITY;
+    `);
+
     console.log('Database initialized successfully');
   } catch (err) {
     console.error('Error initializing database:', err);

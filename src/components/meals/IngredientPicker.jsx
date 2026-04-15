@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import SearchInput from '../ui/SearchInput';
 import IngredientCard from '../ingredients/IngredientCard';
 import { useIngredients } from '../../hooks/useIngredients';
+import { useAuth } from '../../context/AuthContext';
 import styles from './IngredientPicker.module.css';
 
 const IngredientPicker = ({ onSelect, onCancel }) => {
+  const { user } = useAuth();
   const { ingredients, isLoading } = useIngredients();
   const [search, setSearch] = useState('');
 
@@ -30,6 +32,7 @@ const IngredientPicker = ({ onSelect, onCancel }) => {
             <IngredientCard 
               key={ing.id} 
               ingredient={ing} 
+              currentUserId={user?.id}
               onClick={() => onSelect(ing)} 
             />
           ))

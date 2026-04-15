@@ -41,6 +41,8 @@ const toIngredient = (row) => row && ({
   fat: numberOrNull(row.fat),
   carbs: numberOrNull(row.carbs),
   servingLabel: row.serving_label,
+  isPublic: row.is_public,
+  userId: row.user_id,
   createdAt: row.created_at
 });
 
@@ -129,7 +131,10 @@ app.put('/api/profile', authenticate, async (req, res) => {
 // Ingredients
 app.get('/api/ingredients', authenticate, async (req, res) => {
   try {
-    const result = await query('SELECT * FROM ingredients WHERE user_id = $1 ORDER BY name ASC', [req.user.id]);
+    const result = await query(
+      'SELECT * FROM ingredients WHERE user_id = $1 OR is_public = true ORDER BY name ASC',
+      [req.user.id]
+    );
     res.json(result.rows.map(toIngredient));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -137,12 +142,12 @@ app.get('/api/ingredients', authenticate, async (req, res) => {
 });
 
 app.post('/api/ingredients', authenticate, async (req, res) => {
-  const { name, measureType, kcal, protein, fat, carbs, servingLabel } = req.body;
+  const { name, measureType, kcal, protein, fat, carbs, servingLabel, isPublic } = req.body;
   try {
     const result = await query(
-      `INSERT INTO ingredients (user_id, name, measure_type, kcal, protein, fat, carbs, serving_label)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [req.user.id, name, measureType, kcal, protein, fat, carbs, servingLabel]
+      `INSERT INTO ingredients (user_id, name, measure_type, kcal, protein, fat, carbs, serving_label, is_public)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [req.user.id, name, measureType, kcal, protein, fat, carbs, servingLabel, isPublic ?? true]
     );
     res.json(toIngredient(result.rows[0]));
   } catch (err) {
@@ -151,14 +156,14 @@ app.post('/api/ingredients', authenticate, async (req, res) => {
 });
 
 app.put('/api/ingredients/:id', authenticate, async (req, res) => {
-  const { name, measureType, kcal, protein, fat, carbs, servingLabel } = req.body;
+  const { name, measureType, kcal, protein, fat, carbs, servingLabel, isPublic } = req.body;
   try {
     const result = await query(
       `UPDATE ingredients
-       SET name=$3, measure_type=$4, kcal=$5, protein=$6, fat=$7, carbs=$8, serving_label=$9
+       SET name=$3, measure_type=$4, kcal=$5, protein=$6, fat=$7, carbs=$8, serving_label=$9, is_public=$10
        WHERE id = $1 AND user_id = $2
        RETURNING *`,
-      [req.params.id, req.user.id, name, measureType, kcal, protein, fat, carbs, servingLabel]
+      [req.params.id, req.user.id, name, measureType, kcal, protein, fat, carbs, servingLabel, isPublic]
     );
 
     if (!result.rows[0]) {
@@ -185,7 +190,7 @@ app.get('/api/entries/:date', authenticate, async (req, res) => {
   try {
     const [entryResult, ingredientResult] = await Promise.all([
       query('SELECT * FROM day_entries WHERE user_id = $1 AND date = $2', [req.user.id, req.params.date]),
-      query('SELECT * FROM ingredients WHERE user_id = $1', [req.user.id])
+      query('SELECT * FROM ingredients WHERE user_id = $1 OR is_public = true', [req.user.id])
     ]);
     const entry = toEntry(entryResult.rows[0]) || { meals: [] };
     const ingredients = ingredientResult.rows.map(toIngredient);
@@ -208,7 +213,7 @@ app.post('/api/entries', authenticate, async (req, res) => {
        ON CONFLICT (user_id, date) DO UPDATE SET meals = $3 RETURNING *`,
       [req.user.id, date, JSON.stringify(meals)]
     );
-    const ingredientResult = await query('SELECT * FROM ingredients WHERE user_id = $1', [req.user.id]);
+    const ingredientResult = await query('SELECT * FROM ingredients WHERE user_id = $1 OR is_public = true', [req.user.id]);
     const entry = toEntry(result.rows[0]);
     const ingredients = ingredientResult.rows.map(toIngredient);
 

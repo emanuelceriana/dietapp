@@ -9,12 +9,16 @@ const IngredientForm = ({ onSubmit, initialData }) => {
     kcal: '',
     protein: '',
     fat: '',
-    carbs: ''
+    carbs: '',
+    isPublic: true
   });
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: type === 'checkbox' ? checked : value 
+    }));
   };
 
   const handleTypeChange = (type) => {
@@ -130,6 +134,23 @@ const IngredientForm = ({ onSubmit, initialData }) => {
             required
           />
         </div>
+      </div>
+
+      <div className={styles.checkboxGroup}>
+        <input
+          type="checkbox"
+          id="isPublic"
+          name="isPublic"
+          checked={formData.isPublic}
+          onChange={handleChange}
+          className={styles.checkbox}
+        />
+        <label htmlFor="isPublic" className={styles.checkboxLabel}>
+          Compartir con la comunidad
+        </label>
+        <p className={styles.checkboxHelp}>
+          Otros usuarios podrán ver y usar este alimento en sus dietas.
+        </p>
       </div>
 
       <button type="submit" className={styles.submitBtn}>
