@@ -1,0 +1,76 @@
+.bottomNav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(70px + env(safe-area-inset-bottom));
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 1000;
+}
+
+.link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-weight: 500;
+  gap: 4px;
+  transition: var(--transition-fast);
+  flex: 1;
+}
+
+.activeLink {
+  composes: link;
+  color: var(--accent-primary);
+}
+
+.addButton {
+  position: relative;
+  top: -20px;
+  background: none;
+  border: none;
+  padding: 0;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.addIconWrapper {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 15px rgba(108, 92, 231, 0.4);
+  transition: var(--transition-normal);
+}
+
+.addButton:active .addIconWrapper {
+  transform: scale(0.9) rotate(90deg);
+}
+
+.link span {
+  opacity: 0.8;
+}
+
+.activeLink span {
+  opacity: 1;
+}
+
+/* Glass effect if supported */
+@supports (backdrop-filter: blur(12px)) {
+  .bottomNav {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+}

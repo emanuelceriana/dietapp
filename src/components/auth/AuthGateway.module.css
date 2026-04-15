@@ -1,0 +1,139 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, #1a1a2e 0%, #0f0f1a 100%);
+  padding: 20px;
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 40px;
+  text-align: center;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.logoArea {
+  margin-bottom: 32px;
+}
+
+.iconWrapper {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  box-shadow: 0 10px 20px rgba(108, 92, 231, 0.3);
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: white;
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+}
+
+.subtitle {
+  font-size: 0.9rem;
+  color: var(--text-tertiary);
+}
+
+.infoSection {
+  margin-bottom: 32px;
+}
+
+.welcomeText {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 12px;
+}
+
+.description {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.envList {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.envList code {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  color: white;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.loginBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: white;
+  color: #1a1a2e;
+  border-radius: 12px;
+  padding: 14px;
+  font-weight: 700;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  margin-bottom: 24px;
+}
+
+.loginBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(255, 255, 255, 0.1);
+  background: #f0f0f0;
+}
+
+.loginBtn:active {
+  transform: translateY(0);
+}
+
+.disclaimer {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.loadingScreen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f0f1a;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(108, 92, 231, 0.1);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

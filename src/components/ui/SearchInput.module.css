@@ -1,0 +1,49 @@
+.container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  transition: var(--transition-normal);
+  width: 100%;
+}
+
+.container:focus-within {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.1);
+}
+
+.icon {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.input {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1rem;
+  width: 100%;
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.clear {
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 50%;
+  transition: var(--transition-fast);
+}
+
+.clear:hover {
+  background: var(--border-subtle);
+  color: var(--text-secondary);
+}

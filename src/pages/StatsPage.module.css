@@ -1,0 +1,95 @@
+.container {
+  padding: 1.5rem 1rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 1.5rem;
+}
+
+.title {
+  font-size: 1.75rem;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.chartCard {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+}
+
+.chartTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.barChartContainer {
+  margin-left: -10px;
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+.targetLine {
+  width: 20px;
+  height: 2px;
+  background: var(--accent-primary);
+  border-radius: 2px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.statBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  text-align: center;
+}
+
+.statVal {
+  font-family: 'Outfit', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+  line-height: 1;
+}
+
+.statLab {
+  font-size: 0.9rem;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 5rem;
+  color: var(--text-tertiary);
+}
+
+@media (min-width: 480px) {
+  .grid {
+    grid-template-columns: 1.5fr 1fr;
+  }
+}

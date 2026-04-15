@@ -1,0 +1,135 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+@supports (backdrop-filter: blur(12px)) {
+  .container {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.monthInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 6px 16px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+}
+
+.monthInfo:hover {
+  background: var(--border-subtle);
+}
+
+.monthName {
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  color: var(--text-primary);
+}
+
+.pickerIcon {
+  color: var(--accent-primary);
+  opacity: 0.7;
+}
+
+.hiddenPicker {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.scrollArea {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 0 16px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+}
+
+.scrollArea::-webkit-scrollbar {
+  display: none;
+}
+
+.dayButton {
+  flex: 0 0 calc((100% - 64px) / 7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 0;
+  border-radius: var(--radius-md);
+  transition: var(--transition-normal);
+}
+
+.active {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3);
+}
+
+.active .weekday, .active .dateNumber {
+  color: white !important;
+}
+
+.weekday {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.dateNumber {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 1rem;
+  border-radius: 50%;
+  transition: var(--transition-fast);
+}
+
+.today {
+  color: var(--accent-primary);
+  background: rgba(108, 92, 231, 0.1);
+}
+
+.dot {
+  position: absolute;
+  bottom: 2px;
+  width: 5px;
+  height: 5px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  box-shadow: 0 0 5px rgba(108, 92, 231, 0.4);
+}
+
+.active .dot {
+  background: white;
+  box-shadow: none;
+}

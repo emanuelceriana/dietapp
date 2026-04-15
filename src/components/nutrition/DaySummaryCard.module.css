@@ -1,0 +1,126 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  gap: 1.5rem;
+}
+
+.chartContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chartOverlay {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.kcalValue {
+  font-family: 'Outfit', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.overageText {
+  color: var(--accent-danger);
+}
+
+.overageSub {
+  color: var(--accent-danger);
+  font-weight: 600;
+}
+
+.kcalLabel {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.mainInfo {
+  text-align: center;
+}
+
+.title {
+  font-size: 1.1rem;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.macros {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.macroItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.macroHeader {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+
+.macroName {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.macroValue {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+}
+
+.barContainer {
+  height: 8px;
+  background: var(--border-subtle);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  display: flex;
+}
+
+.bar {
+  height: 100%;
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (min-width: 480px) {
+  .card {
+    flex-direction: row;
+    align-items: center;
+  }
+  
+  .chartContainer {
+    flex: 1;
+  }
+  
+  .info {
+    flex: 2;
+    text-align: left;
+  }
+  
+  .mainInfo {
+    text-align: left;
+  }
+}
