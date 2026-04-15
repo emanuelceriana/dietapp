@@ -132,7 +132,7 @@ In development, Express mounts Vite as middleware, so the frontend and backend r
 | `npm run dev:full` | Runs Express with Vite middleware for local full-stack development |
 | `npm run build` | Builds the frontend into `dist/` |
 | `npm run lint` | Runs ESLint |
-| `npm run render-build` | Installs backend dependencies and builds the frontend |
+| `npm run render-build` | Installs frontend/backend dependencies and builds the frontend |
 | `npm start` | Starts the production Express server |
 
 ## Production Build
@@ -173,7 +173,7 @@ The repository includes `render.yaml`. In Render:
 Create a new Render Web Service and use:
 
 ```sh
-Build Command: npm install && npm run render-build
+Build Command: npm run render-build
 Start Command: npm start
 ```
 
@@ -181,7 +181,6 @@ Set these environment variables in Render:
 
 ```sh
 NODE_VERSION=22
-NODE_ENV=production
 DATABASE_URL=your_postgres_connection_string
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_ANON_KEY=your_supabase_anon_key
@@ -190,6 +189,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 Do not set `PORT` in Render.
+Do not set `NODE_ENV` manually for the build; `npm start` sets `NODE_ENV=production` when the server starts.
 
 ## Supabase Auth Configuration
 

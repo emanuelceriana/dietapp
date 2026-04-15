@@ -2,13 +2,11 @@ services:
   - type: web
     name: dietapp
     env: node
-    buildCommand: npm install && npm run render-build
+    buildCommand: npm run render-build
     startCommand: npm start
     envVars:
       - key: NODE_VERSION
         value: 22
-      - key: NODE_ENV
-        value: production
       - key: DATABASE_URL
         sync: false
       - key: SUPABASE_URL

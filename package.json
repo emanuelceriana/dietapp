@@ -9,7 +9,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "render-build": "npm install --prefix server && npm run build",
+    "render-build": "npm install --include=dev && npm install --prefix server && npm run build",
     "server": "npm --prefix server start",
     "start": "NODE_ENV=production npm --prefix server start"
   },
