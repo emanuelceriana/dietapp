@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { format, isSameDay, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import { formatDate } from '../../utils/dates';
 import styles from './CalendarStrip.module.css';
 

@@ -30,6 +30,7 @@
   --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --bottom-nav-height: 70px;
+  --calendar-strip-height: 126px;
 }
 
 /* Light Mode (Default) */
@@ -79,6 +80,7 @@ html {
   min-height: 100%;
   background: var(--bg-primary);
   color-scheme: light dark;
+  overflow-x: hidden;
 }
 
 body {

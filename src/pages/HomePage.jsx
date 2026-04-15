@@ -9,6 +9,7 @@ import { useDayEntries, useAllEntryDates } from '../hooks/useDayEntries';
 import { useIngredients } from '../hooks/useIngredients';
 import { useProfile } from '../hooks/useProfile';
 import { calculateTDEE } from '../utils/nutrition';
+import { formatDate } from '../utils/dates';
 import styles from './HomePage.module.css';
 
 const HomePage = () => {
@@ -123,7 +124,7 @@ const HomePage = () => {
       />
       
       <div className={styles.content}>
-        <DaySummaryCard totals={totals} target={target} />
+        <DaySummaryCard totals={totals} target={target} animationKey={formatDate(selectedDate)} />
         
         <section className={styles.mealsSection}>
           <div className={styles.sectionHeader}>

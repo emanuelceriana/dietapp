@@ -9,6 +9,7 @@ export function useDayEntries(selectedDate) {
   const [entry, setEntry] = useState(() => ({ date: dateStr, meals: [] }));
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const emptyEntry = useMemo(() => ({ date: dateStr, meals: [] }), [dateStr]);
 
   const fetchEntry = useCallback(async () => {
     const requestId = requestRef.current + 1;
@@ -19,7 +20,7 @@ export function useDayEntries(selectedDate) {
       setEntry(cachedEntry);
       setHasLoaded(true);
     } else {
-      setEntry({ date: dateStr, meals: [] });
+      setEntry(emptyEntry);
       setHasLoaded(false);
     }
 
@@ -40,7 +41,7 @@ export function useDayEntries(selectedDate) {
         setIsLoading(false);
       }
     }
-  }, [dateStr]);
+  }, [dateStr, emptyEntry]);
 
   useEffect(() => {
     fetchEntry();
@@ -58,18 +59,26 @@ export function useDayEntries(selectedDate) {
     return nextEntry;
   };
 
+  const visibleEntry = entry?.date === dateStr
+    ? entry
+    : cacheRef.current.get(dateStr) || emptyEntry;
+
+  const visibleHasLoaded = entry?.date === dateStr
+    ? hasLoaded
+    : cacheRef.current.has(dateStr);
+
   const addMeal = async (meal) => {
-    const currentMeals = entry?.meals || [];
+    const currentMeals = visibleEntry?.meals || [];
     return await updateMeals([...currentMeals, { ...meal, id: crypto.randomUUID() }]);
   };
 
   const deleteMeal = async (mealId) => {
-    const currentMeals = entry?.meals || [];
+    const currentMeals = visibleEntry?.meals || [];
     return await updateMeals(currentMeals.filter(m => m.id !== mealId));
   };
 
   const updateMeal = async (mealId, updatedData) => {
-    const currentMeals = entry?.meals || [];
+    const currentMeals = visibleEntry?.meals || [];
     const newMeals = currentMeals.map(m => 
       m.id === mealId ? { ...m, ...updatedData } : m
     );
@@ -77,9 +86,9 @@ export function useDayEntries(selectedDate) {
   };
 
   return {
-    entry,
+    entry: visibleEntry,
     isLoading,
-    hasLoaded,
+    hasLoaded: visibleHasLoaded,
     addMeal,
     updateMeals,
     deleteMeal,

@@ -2,21 +2,27 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  min-width: 0;
 }
 
 .inputGroup {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .label {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-secondary);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .input {
+  width: 100%;
+  min-width: 0;
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -32,7 +38,8 @@
 }
 
 .toggleGroup {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   background: var(--bg-secondary);
   padding: 4px;
   border-radius: var(--radius-md);
@@ -40,7 +47,7 @@
 }
 
 .toggle {
-  flex: 1;
+  min-width: 0;
   padding: 8px;
   border-radius: calc(var(--radius-md) - 4px);
   font-size: 0.9rem;
@@ -57,7 +64,7 @@
 
 .macrosGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
 
@@ -75,4 +82,42 @@
 
 .submitBtn:active {
   transform: scale(0.98);
+}
+
+@media (max-width: 520px) {
+  .form {
+    gap: 1rem;
+  }
+
+  .label {
+    font-size: 0.78rem;
+  }
+
+  .input {
+    padding: 10px;
+    font-size: 0.95rem;
+  }
+
+  .toggle {
+    padding: 8px 6px;
+    font-size: 0.82rem;
+    line-height: 1.2;
+  }
+
+  .macrosGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .submitBtn {
+    margin-top: 0.25rem;
+    padding: 0.9rem;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .macrosGrid {
+    grid-template-columns: 1fr;
+  }
 }
