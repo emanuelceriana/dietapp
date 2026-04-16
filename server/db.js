@@ -1,5 +1,9 @@
 require('dotenv').config();
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
+
+// Prevent pg from converting DATE columns to JS Date objects (which shifts days by timezone).
+// OID 1082 = DATE type. Return as plain 'YYYY-MM-DD' string.
+types.setTypeParser(1082, (val) => val);
 
 const pool = process.env.DATABASE_URL
   ? new Pool({
@@ -36,8 +40,17 @@ const initializeDB = async () => {
         weight_kg NUMERIC,
         activity_level TEXT,
         manual_kcal INTEGER,
+        weight_frequency INTEGER DEFAULT 3,
         theme TEXT DEFAULT 'dark',
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS weight_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+        date DATE NOT NULL,
+        weight_kg NUMERIC NOT NULL,
+        UNIQUE(user_id, date)
       );
 
       CREATE TABLE IF NOT EXISTS ingredients (
@@ -80,6 +93,12 @@ const initializeDB = async () => {
     // Migration: Ensure ALL current ingredients are marked as public to fulfill the user request
     await query(`
       UPDATE ingredients SET is_public = true;
+    `);
+
+    // Migration: Add weight_frequency to existing profiles table if it doesn't exist
+    await query(`
+      ALTER TABLE profiles 
+      ADD COLUMN IF NOT EXISTS weight_frequency INTEGER DEFAULT 3;
     `);
 
     // Migration: Disable RLS on ingredients table to allow global access via our backend logic

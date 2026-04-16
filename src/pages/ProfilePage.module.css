@@ -4,7 +4,7 @@
   margin: 0 auto;
   width: 100%;
   overflow-x: clip;
-  padding-bottom: calc(var(--bottom-nav-height) + 1.5rem + env(safe-area-inset-bottom));
+  padding-bottom: 100px !important;
 }
 
 .header {
@@ -227,6 +227,41 @@
   justify-content: center;
   padding: 5rem;
   color: var(--text-tertiary);
+}
+
+.frequencyContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.frequencyButtons {
+  display: flex;
+  gap: 10px;
+}
+
+.freqBtn {
+  flex: 1;
+  padding: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-weight: 600;
+  transition: var(--transition-normal);
+}
+
+.activeFreq {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+  box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3);
+}
+
+.helpText {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  line-height: 1.4;
 }
 
 @media (max-width: 520px) {

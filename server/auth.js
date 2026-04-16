@@ -7,6 +7,7 @@ const supabase = hasSupabaseConfig
   : null;
 
 const authenticate = async (req, res, next) => {
+
   if (!supabase) {
     return res.status(500).json({
       error: 'Server Supabase credentials are not configured'

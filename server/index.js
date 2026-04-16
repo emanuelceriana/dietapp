@@ -29,7 +29,23 @@ const toProfile = (row) => row && ({
   weightKg: numberOrNull(row.weight_kg),
   activityLevel: row.activity_level,
   manualGoal: row.manual_kcal,
+  weightFrequency: row.weight_frequency,
   theme: row.theme
+});
+
+const formatDate = (date) => {
+  if (!(date instanceof Date)) return date;
+  // Use UTC parts to guarantee the nominal date remains the same regardless of server/client timezone
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const toWeightLog = (row) => row && ({
+  id: row.id,
+  date: formatDate(row.date),
+  weightKg: numberOrNull(row.weight_kg)
 });
 
 const toIngredient = (row) => row && ({
@@ -48,7 +64,7 @@ const toIngredient = (row) => row && ({
 
 const toEntry = (row) => row && ({
   id: row.id,
-  date: row.date instanceof Date ? row.date.toISOString().slice(0, 10) : row.date,
+  date: formatDate(row.date),
   meals: row.meals || []
 });
 
@@ -75,8 +91,8 @@ const ensureProfile = async (user) => {
   const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuario';
 
   const result = await query(
-    `INSERT INTO profiles (id, name, sex, age, height_cm, weight_kg, activity_level, theme)
-     VALUES ($1, $2, 'male', 30, 175, 75, 'moderate', 'dark')
+    `INSERT INTO profiles (id, name, sex, age, height_cm, weight_kg, activity_level, weight_frequency, theme)
+     VALUES ($1, $2, 'male', 30, 175, 75, 'moderate', 3, 'dark')
      ON CONFLICT (id) DO UPDATE
        SET name = COALESCE(profiles.name, EXCLUDED.name)
      RETURNING *`,
@@ -114,13 +130,13 @@ app.get('/api/profile', authenticate, async (req, res) => {
 });
 
 app.put('/api/profile', authenticate, async (req, res) => {
-  const { name, sex, age, heightCm, weightKg, activityLevel, manualGoal, theme } = req.body;
+  const { name, sex, age, heightCm, weightKg, activityLevel, manualGoal, weightFrequency, theme } = req.body;
   try {
     const result = await query(
       `UPDATE profiles 
-       SET name=$2, sex=$3, age=$4, height_cm=$5, weight_kg=$6, activity_level=$7, manual_kcal=$8, theme=$9, updated_at=NOW()
+       SET name=$2, sex=$3, age=$4, height_cm=$5, weight_kg=$6, activity_level=$7, manual_kcal=$8, weight_frequency=$9, theme=$10, updated_at=NOW()
        WHERE id = $1 RETURNING *`,
-      [req.user.id, name, sex, age, heightCm, weightKg, activityLevel, manualGoal, theme]
+      [req.user.id, name, sex, age, heightCm, weightKg, activityLevel, manualGoal, weightFrequency, theme]
     );
     res.json(toProfile(result.rows[0]));
   } catch (err) {
@@ -189,7 +205,7 @@ app.delete('/api/ingredients/:id', authenticate, async (req, res) => {
 app.get('/api/entries/:date', authenticate, async (req, res) => {
   try {
     const [entryResult, ingredientResult] = await Promise.all([
-      query('SELECT * FROM day_entries WHERE user_id = $1 AND date = $2', [req.user.id, req.params.date]),
+      query('SELECT id, date::text, meals FROM day_entries WHERE user_id = $1 AND date = $2', [req.user.id, req.params.date]),
       query('SELECT * FROM ingredients WHERE user_id = $1 OR is_public = true', [req.user.id])
     ]);
     const entry = toEntry(entryResult.rows[0]) || { meals: [] };
@@ -210,7 +226,8 @@ app.post('/api/entries', authenticate, async (req, res) => {
     const result = await query(
       `INSERT INTO day_entries (user_id, date, meals)
        VALUES ($1, $2, $3)
-       ON CONFLICT (user_id, date) DO UPDATE SET meals = $3 RETURNING *`,
+       ON CONFLICT (user_id, date) DO UPDATE SET meals = $3 
+       RETURNING id, date::text, meals`,
       [req.user.id, date, JSON.stringify(meals)]
     );
     const ingredientResult = await query('SELECT * FROM ingredients WHERE user_id = $1 OR is_public = true', [req.user.id]);
@@ -253,6 +270,44 @@ app.post('/api/templates', authenticate, async (req, res) => {
 app.delete('/api/templates/:id', authenticate, async (req, res) => {
   try {
     await query('DELETE FROM meal_templates WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Weight Logs
+app.get('/api/weights', authenticate, async (req, res) => {
+  try {
+    const result = await query(
+      'SELECT id, date::text, weight_kg FROM weight_logs WHERE user_id = $1 ORDER BY date DESC',
+      [req.user.id]
+    );
+    res.json(result.rows.map(toWeightLog));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/weights', authenticate, async (req, res) => {
+  const { date, weightKg } = req.body;
+  try {
+    const result = await query(
+      `INSERT INTO weight_logs (user_id, date, weight_kg)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, date) DO UPDATE SET weight_kg = $3 
+       RETURNING id, date::text, weight_kg`,
+      [req.user.id, date, weightKg]
+    );
+    res.json(toWeightLog(result.rows[0]));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/weights/:id', authenticate, async (req, res) => {
+  try {
+    await query('DELETE FROM weight_logs WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

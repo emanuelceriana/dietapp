@@ -8,7 +8,7 @@
   --accent-success: #00b894;
   --accent-warning: #fdcb6e;
   --accent-danger: #e17055;
-  
+
   /* Macro Colors */
   --color-protein: #ff7675;
   --color-fat: #fab1a0;
@@ -16,10 +16,10 @@
   --color-calories: #a29bfe;
 
   /* Shadows */
-  --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.15);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.2);
-  
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
+
   /* Radii */
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -34,16 +34,17 @@
 }
 
 /* Light Mode (Default) */
-:root, [data-theme='light'] {
+:root,
+[data-theme='light'] {
   --bg-primary: #f8f9fa;
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
   --bg-surface: rgba(255, 255, 255, 0.8);
-  
+
   --text-primary: #2d3436;
   --text-secondary: #636e72;
   --text-tertiary: #b2bec3;
-  
+
   --border-subtle: rgba(0, 0, 0, 0.05);
   --border-medium: rgba(0, 0, 0, 0.1);
 
@@ -57,11 +58,11 @@
   --bg-secondary: #141824;
   --bg-card: #141824;
   --bg-surface: rgba(20, 24, 36, 0.8);
-  
+
   --text-primary: #f5f6fa;
   --text-secondary: #8395a7;
   --text-tertiary: #576574;
-  
+
   --border-subtle: rgba(255, 255, 255, 0.06);
   --border-medium: rgba(255, 255, 255, 0.1);
 
@@ -89,13 +90,19 @@ body {
   color: var(--text-primary);
   line-height: 1.5;
   transition: background-color 0.3s ease, color 0.3s ease;
-  min-height: 100svh;
-  overflow-x: hidden;
-  overscroll-behavior-y: contain;
+  min-height: 100%;
+  overflow-y: scroll;
+  overscroll-behavior-y: auto;
   padding-top: env(safe-area-inset-top);
 }
 
-h1, h2, h3, h4, h5, h6, .font-heading {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.font-heading {
   font-family: 'Outfit', sans-serif;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -131,20 +138,18 @@ button {
 
 /* Base Layout */
 #root {
-  display: flex;
-  flex-direction: column;
-  min-height: 100svh;
+  width: 100%;
 }
 
 main {
-  flex: 1;
+  width: 100%;
+  min-height: 100vh;
   padding: 1rem;
-  padding-bottom: calc(var(--bottom-nav-height) + 18px + env(safe-area-inset-bottom));
+  padding-bottom: 2rem;
 }
 
 @supports (height: 100dvh) {
-  body,
-  #root {
+  main {
     min-height: 100dvh;
   }
 }
