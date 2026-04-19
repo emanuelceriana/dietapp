@@ -3,25 +3,40 @@ import {
   startOfWeek, endOfWeek, 
   startOfMonth, endOfMonth, 
   startOfYear, endOfYear,
-  isWithinInterval, parseISO 
+  parseISO
 } from 'date-fns';
-import { apiFetch } from '../lib/api';
+import { apiFetch, getApiCache, setApiCache } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
+
+const WEIGHTS_CACHE_TTL_MS = 15 * 60 * 1000;
+const WEIGHTS_ENDPOINT = '/weights';
 
 export function useWeights() {
-  const [weights, setWeights] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+  const cachedWeights = getApiCache(user?.id, WEIGHTS_ENDPOINT, WEIGHTS_CACHE_TTL_MS);
+  const [weights, setWeights] = useState(() => cachedWeights || []);
+  const [isLoading, setIsLoading] = useState(() => !cachedWeights);
 
   const fetchWeights = useCallback(async () => {
+    const cached = getApiCache(user?.id, WEIGHTS_ENDPOINT, WEIGHTS_CACHE_TTL_MS);
+    if (cached) {
+      setWeights(cached);
+      setIsLoading(false);
+      return cached;
+    }
+
     setIsLoading(true);
     try {
-      const data = await apiFetch('/weights');
+      const data = await apiFetch(WEIGHTS_ENDPOINT, { cacheTtlMs: WEIGHTS_CACHE_TTL_MS });
       setWeights(data);
+      return data;
     } catch (err) {
       console.error('Error fetching weights:', err);
+      return [];
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchWeights();
@@ -39,9 +54,12 @@ export function useWeights() {
         if (index >= 0) {
           const updated = [...prev];
           updated[index] = newWeight;
+          setApiCache(user?.id, WEIGHTS_ENDPOINT, updated);
           return updated;
         }
-        return [newWeight, ...prev].sort((a, b) => new Date(b.date) - new Date(a.date));
+        const updated = [newWeight, ...prev].sort((a, b) => new Date(b.date) - new Date(a.date));
+        setApiCache(user?.id, WEIGHTS_ENDPOINT, updated);
+        return updated;
       });
       return newWeight;
     } catch (err) {
@@ -53,7 +71,11 @@ export function useWeights() {
   const deleteWeight = async (id) => {
     try {
       await apiFetch(`/weights/${id}`, { method: 'DELETE' });
-      setWeights(prev => prev.filter(w => w.id !== id));
+      setWeights(prev => {
+        const updated = prev.filter(w => w.id !== id);
+        setApiCache(user?.id, WEIGHTS_ENDPOINT, updated);
+        return updated;
+      });
     } catch (err) {
       console.error('Error deleting weight:', err);
       throw err;

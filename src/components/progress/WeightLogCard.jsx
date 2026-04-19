@@ -9,6 +9,7 @@ const WeightLogCard = ({
   frequency: defaultFrequency = 3, 
   onAdd, 
   onDelete,
+  onFrequencyChange,
   baseDate = new Date() 
 }) => {
   const [inputValue, setInputValue] = useState('');
@@ -16,18 +17,23 @@ const WeightLogCard = ({
   
   const start = startOfWeek(baseDate, { weekStartsOn: 1 });
   const end = endOfWeek(baseDate, { weekStartsOn: 1 });
+  const startStr = format(start, 'yyyy-MM-dd');
+  const endStr = format(end, 'yyyy-MM-dd');
   
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const [selectedDateStr, setSelectedDateStr] = useState(
-    isSameDay(new Date(), baseDate) ? todayStr : format(start, 'yyyy-MM-dd')
+    isSameDay(new Date(), baseDate) ? todayStr : startStr
   );
 
   useEffect(() => {
-    const d = parseISO(selectedDateStr);
-    if (d < start || d > end) {
-      setSelectedDateStr(format(start, 'yyyy-MM-dd'));
+    if (selectedDateStr < startStr || selectedDateStr > endStr) {
+      setSelectedDateStr(startStr);
     }
-  }, [baseDate]);
+  }, [selectedDateStr, startStr, endStr]);
+
+  useEffect(() => {
+    setFrequency(defaultFrequency);
+  }, [defaultFrequency]);
 
   const daysOfWeek = eachDayOfInterval({ start, end });
   
@@ -48,7 +54,13 @@ const WeightLogCard = ({
     if (frequency === 1) return day === 3;
     if (frequency === 3) return [1, 3, 5].includes(day);
     if (frequency === 5) return [1, 2, 3, 4, 5].includes(day);
+    if (frequency === 7) return true;
     return false;
+  };
+
+  const handleFrequencyChange = (nextFrequency) => {
+    setFrequency(nextFrequency);
+    onFrequencyChange?.(nextFrequency);
   };
 
   const selectedDateObj = daysOfWeek.find(d => format(d, 'yyyy-MM-dd') === selectedDateStr) || new Date();
@@ -60,14 +72,14 @@ const WeightLogCard = ({
           <div className={styles.iconBox}>
             <Scale size={20} />
           </div>
-          <div>
+          <div className={styles.titleContent}>
             <h3 className={styles.title}>Pesajes de la Semana</h3>
             <div className={styles.freqSelector}>
-              {[1, 3, 5].map(f => (
+              {[1, 3, 5, 7].map(f => (
                 <button
                   key={f}
                   className={`${styles.freqBtn} ${frequency === f ? styles.freqActive : ''}`}
-                  onClick={() => setFrequency(f)}
+                  onClick={() => handleFrequencyChange(f)}
                 >
                   {f}d
                 </button>
@@ -103,7 +115,7 @@ const WeightLogCard = ({
               
               {weight ? (
                 <div className={styles.weightValueMini}>
-                  {weight.weightKg}
+                  <span className={styles.weightNumber}>{weight.weightKg}</span>
                   <button 
                     className={styles.deleteBtn} 
                     onClick={(e) => { e.stopPropagation(); onDelete(weight.id); }}

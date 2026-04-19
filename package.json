@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm --prefix server run dev",
+    "dev:client": "vite",
     "dev:full": "npm --prefix server run dev",
     "build": "vite build",
     "lint": "eslint .",

@@ -1,70 +1,114 @@
-import { useCallback, useEffect, useState } from 'react';
-import { subDays, startOfDay } from 'date-fns';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { eachDayOfInterval, format, parseISO, startOfDay, subDays } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { formatDate } from '../utils/dates';
-import { apiFetch } from '../lib/api';
-import { useIngredients } from './useIngredients';
+import { apiFetch, getApiCache } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 
-export function useStats(daysCount = 7) {
-  const { ingredients, isLoading: ingLoading } = useIngredients();
-  const [stats, setStats] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+const STATS_CACHE_TTL_MS = 15 * 60 * 1000;
+
+const getRange = (range) => {
+  if (typeof range === 'number') {
+    const today = startOfDay(new Date());
+    return {
+      start: subDays(today, Math.max(range - 1, 0)),
+      end: today
+    };
+  }
+
+  return {
+    start: startOfDay(range.start),
+    end: startOfDay(range.end)
+  };
+};
+
+const calculateEntryTotals = (entry) => {
+  const totals = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+
+  (entry?.meals || []).forEach((meal) => {
+    (meal.items || []).forEach((item) => {
+      const ingredient = item.ingredient;
+      if (!ingredient) return;
+
+      const factor = ingredient.measureType === 'per_serving'
+        ? Number(item.quantity) || 0
+        : (Number(item.quantity) || 0) / 100;
+
+      totals.kcal += (Number(ingredient.kcal) || 0) * factor;
+      totals.protein += (Number(ingredient.protein) || 0) * factor;
+      totals.carbs += (Number(ingredient.carbs) || 0) * factor;
+      totals.fat += (Number(ingredient.fat) || 0) * factor;
+    });
+  });
+
+  return {
+    kcal: Math.round(totals.kcal),
+    protein: Math.round(totals.protein),
+    carbs: Math.round(totals.carbs),
+    fat: Math.round(totals.fat)
+  };
+};
+
+const getDisplayDate = (date, daysCount) => {
+  const dateStr = formatDate(date);
+  if (dateStr === formatDate(new Date())) return 'Hoy';
+  if (daysCount <= 7) return format(date, 'EEE', { locale: es });
+  return format(date, 'd MMM', { locale: es });
+};
+
+export function useStats(range = 7) {
+  const { user } = useAuth();
+  const { start, end } = useMemo(() => getRange(range), [range]);
+  const startStr = formatDate(start);
+  const endStr = formatDate(end);
+  const endpoint = `/entries?start=${startStr}&end=${endStr}`;
+
+  const buildStats = useCallback((entries = []) => {
+    const dates = eachDayOfInterval({
+      start: parseISO(startStr),
+      end: parseISO(endStr)
+    });
+    const entriesByDate = new Map(entries.map((entry) => [entry.date, entry]));
+
+    return dates.map((date) => {
+      const dateStr = formatDate(date);
+      const totals = calculateEntryTotals(entriesByDate.get(dateStr));
+
+      return {
+        date: dateStr,
+        displayDate: getDisplayDate(date, dates.length),
+        ...totals
+      };
+    });
+  }, [startStr, endStr]);
+
+  const cachedStats = useMemo(() => {
+    const cachedEntries = getApiCache(user?.id, endpoint, STATS_CACHE_TTL_MS);
+    return cachedEntries ? buildStats(cachedEntries) : null;
+  }, [user?.id, endpoint, buildStats]);
+
+  const [stats, setStats] = useState(() => cachedStats || []);
+  const [isLoading, setIsLoading] = useState(() => !cachedStats);
 
   const fetchStats = useCallback(async () => {
-    if (ingLoading) return;
-    
+    const cachedEntries = getApiCache(user?.id, endpoint, STATS_CACHE_TTL_MS);
+    if (cachedEntries) {
+      setStats(buildStats(cachedEntries));
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const today = startOfDay(new Date());
-      const data = [];
-
-      // Fetch all entries in parallel for better performance
-      const promises = [];
-      for (let i = daysCount - 1; i >= 0; i--) {
-        const date = subDays(today, i);
-        const dateStr = formatDate(date);
-        promises.push(apiFetch(`/entries/${dateStr}`).then(entry => ({ date, dateStr, entry, i })));
-      }
-
-      const results = await Promise.all(promises);
-
-      results.forEach(({ date, dateStr, entry, i }) => {
-        let kcal = 0;
-        let protein = 0;
-        let carbs = 0;
-        let fat = 0;
-
-        if (entry && entry.meals && ingredients) {
-          entry.meals.forEach(meal => {
-            meal.items.forEach(item => {
-              const ing = ingredients.find(ing => ing.id === item.ingredientId) || item.ingredient;
-              if (ing) {
-                const factor = ing.measureType === 'per_serving' ? item.quantity : item.quantity / 100;
-                kcal += (Number(ing.kcal) || 0) * factor;
-                protein += (Number(ing.protein) || 0) * factor;
-                carbs += (Number(ing.carbs) || 0) * factor;
-                fat += (Number(ing.fat) || 0) * factor;
-              }
-            });
-          });
-        }
-
-        data.push({
-          date: dateStr,
-          displayDate: i === 0 ? 'Hoy' : date.toLocaleDateString('es-ES', { weekday: 'short' }),
-          kcal: Math.round(kcal),
-          protein: Math.round(protein),
-          carbs: Math.round(carbs),
-          fat: Math.round(fat)
-        });
-      });
-
-      setStats(data);
+      const entries = await apiFetch(endpoint, { cacheTtlMs: STATS_CACHE_TTL_MS });
+      setStats(buildStats(entries));
     } catch (err) {
       console.error('Error fetching stats:', err);
+      setStats([]);
     } finally {
       setIsLoading(false);
     }
-  }, [daysCount, ingLoading, ingredients]);
+  }, [user?.id, endpoint, buildStats]);
 
   useEffect(() => {
     fetchStats();
@@ -72,6 +116,6 @@ export function useStats(daysCount = 7) {
 
   return {
     data: stats,
-    isLoading: isLoading || ingLoading
+    isLoading
   };
 }

@@ -68,6 +68,10 @@ const toEntry = (row) => row && ({
   meals: row.meals || []
 });
 
+const isISODateString = (value) => (
+  typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+);
+
 const attachIngredientsToMeals = (meals, ingredients) => {
   const ingredientsById = new Map(ingredients.map((ingredient) => [ingredient.id, ingredient]));
 
@@ -202,6 +206,38 @@ app.delete('/api/ingredients/:id', authenticate, async (req, res) => {
 });
 
 // Day Entries
+app.get('/api/entries', authenticate, async (req, res) => {
+  const { start, end } = req.query;
+
+  if (!isISODateString(start) || !isISODateString(end)) {
+    return res.status(400).json({ error: 'start and end must use YYYY-MM-DD format' });
+  }
+
+  try {
+    const [entriesResult, ingredientResult] = await Promise.all([
+      query(
+        `SELECT id, date::text, meals
+         FROM day_entries
+         WHERE user_id = $1 AND date BETWEEN $2 AND $3
+         ORDER BY date ASC`,
+        [req.user.id, start, end]
+      ),
+      query('SELECT * FROM ingredients WHERE user_id = $1 OR is_public = true', [req.user.id])
+    ]);
+    const ingredients = ingredientResult.rows.map(toIngredient);
+
+    res.json(entriesResult.rows.map((row) => {
+      const entry = toEntry(row);
+      return {
+        ...entry,
+        meals: attachIngredientsToMeals(entry.meals, ingredients)
+      };
+    }));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/entries/:date', authenticate, async (req, res) => {
   try {
     const [entryResult, ingredientResult] = await Promise.all([

@@ -1,5 +1,6 @@
 .container {
   padding: 1.5rem 1rem;
+  padding-bottom: calc(var(--bottom-nav-height) + 6rem + env(safe-area-inset-bottom));
   max-width: 600px;
   margin: 0 auto;
   position: relative;
@@ -32,6 +33,7 @@
 .list {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .empty {

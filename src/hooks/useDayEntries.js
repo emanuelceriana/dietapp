@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { apiFetch } from '../lib/api';
+import { apiFetch, invalidateApiCache, setApiCache } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 import { formatDate } from '../utils/dates';
 
+const ENTRIES_CACHE_TTL_MS = 15 * 60 * 1000;
+
 export function useDayEntries(selectedDate) {
+  const { user } = useAuth();
   const dateStr = useMemo(() => formatDate(selectedDate), [selectedDate]);
   const cacheRef = useRef(new Map());
   const requestRef = useRef(0);
@@ -26,7 +30,7 @@ export function useDayEntries(selectedDate) {
 
     setIsLoading(true);
     try {
-      const data = await apiFetch(`/entries/${dateStr}`);
+      const data = await apiFetch(`/entries/${dateStr}`, { cacheTtlMs: ENTRIES_CACHE_TTL_MS });
       if (requestRef.current !== requestId) return;
 
       const nextEntry = { date: dateStr, meals: [], ...data };
@@ -53,6 +57,8 @@ export function useDayEntries(selectedDate) {
       body: JSON.stringify({ date: dateStr, meals })
     });
     const nextEntry = { date: dateStr, meals: [], ...updated };
+    invalidateApiCache(user?.id, ['/entries']);
+    setApiCache(user?.id, `/entries/${dateStr}`, nextEntry);
     cacheRef.current.set(dateStr, nextEntry);
     setEntry(nextEntry);
     setHasLoaded(true);

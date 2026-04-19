@@ -114,7 +114,7 @@ npm install --prefix server
 Run the full app from one local Express server:
 
 ```sh
-npm run dev:full
+npm run dev
 ```
 
 Open:
@@ -129,8 +129,9 @@ In development, Express mounts Vite as middleware, so the frontend and backend r
 
 | Command | Description |
 | --- | --- |
-| `npm run dev` | Runs the Vite frontend only |
-| `npm run dev:full` | Runs Express with Vite middleware for local full-stack development |
+| `npm run dev` | Runs Express with Vite middleware for local full-stack development |
+| `npm run dev:client` | Runs the Vite frontend only; API calls require a separate backend on the proxy target |
+| `npm run dev:full` | Alias for `npm run dev` |
 | `npm run build` | Builds the frontend into `dist/` |
 | `npm run lint` | Runs ESLint |
 | `npm run render-build` | Installs frontend/backend dependencies and builds the frontend |
