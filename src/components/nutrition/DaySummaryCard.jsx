@@ -1,5 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import {
+  calculateRemainingNutrition,
+  getMacroFocus,
+  getMacroTargets,
+  getPerMealBudget
+} from '../../utils/nutrition';
 import styles from './DaySummaryCard.module.css';
 
 const CALORIE_ANIMATION_MS = 3000;
@@ -60,14 +66,37 @@ const useAnimatedNumber = (value, resetKey, duration) => {
   return displayValue;
 };
 
-const DaySummaryCard = ({ totals, target, animationKey = 'day-summary' }) => {
+const DaySummaryCard = ({ totals, target, mealsCount = 0, animationKey = 'day-summary' }) => {
   const safeTarget = Math.max(Number(target) || 0, 1);
   const totalKcal = Math.max(Number(totals.kcal) || 0, 0);
+  const macroTargets = getMacroTargets(safeTarget);
+  const remainingNutrition = calculateRemainingNutrition(totals, safeTarget);
+  const macroFocus = getMacroFocus(remainingNutrition, safeTarget);
+  const perMealBudget = getPerMealBudget(totals, safeTarget, mealsCount);
+  const mealsAhead = Math.max(4 - Math.max(Number(mealsCount) || 0, 0), 0);
   const animatedKcal = useAnimatedNumber(totalKcal, animationKey, CALORIE_ANIMATION_MS);
   const roundedAnimatedKcal = Math.round(animatedKcal);
   const isOverKcal = totalKcal > safeTarget;
   const isAnimatedOverKcal = animatedKcal > safeTarget;
   const percent = Math.round((totalKcal / safeTarget) * 100);
+
+  const remainingKcalLabel = remainingNutrition.kcal >= 0
+    ? `${remainingNutrition.kcal} kcal restantes`
+    : `+${Math.abs(remainingNutrition.kcal)} kcal arriba`;
+
+  const nextMealLabel = mealsAhead > 0
+    ? `${perMealBudget.kcal} kcal para la próxima`
+    : 'Si comés algo más';
+
+  const focusLabel = macroFocus.focusLabel;
+
+  const supportLine = macroFocus.primary
+    ? mealsAhead > 0
+      ? `${mealsAhead} comida(s) por delante. Priorizá ${macroFocus.recommendation} en la próxima.`
+      : `Priorizá ${macroFocus.recommendation} si querés cerrar mejor el día.`
+    : mealsAhead > 0
+      ? `${mealsAhead} comida(s) por delante. Podés mantener el cierre liviano.`
+      : 'Podés mantener el cierre liviano.';
   
   const kcalData = isAnimatedOverKcal 
     ? [
@@ -150,30 +179,46 @@ const DaySummaryCard = ({ totals, target, animationKey = 'day-summary' }) => {
             {isOverKcal ? `Te has pasado un ${percent - 100}%` : `Has consumido el ${percent}% de tu meta`}
           </p>
         </div>
+
+        <div className={styles.insightRow}>
+          <div className={`${styles.insightBadge} ${remainingNutrition.kcal < 0 ? styles.insightDanger : ''}`}>
+            <span className={styles.insightLabel}>Balance</span>
+            <strong className={styles.insightValue}>{remainingKcalLabel}</strong>
+          </div>
+
+          <div className={styles.insightBadge}>
+            <span className={styles.insightLabel}>Foco</span>
+            <strong className={styles.insightValue}>{focusLabel}</strong>
+          </div>
+        </div>
+
+        <p className={styles.supportLine}>
+          <strong>{nextMealLabel}.</strong> {supportLine}
+        </p>
         
         <div className={styles.macros}>
           <div className={styles.macroItem}>
             <div className={styles.macroHeader}>
               <span className={styles.macroName}>Proteínas</span>
-              <span className={styles.macroValue}>{totals.protein}g / {Math.round((safeTarget * 0.3) / 4)}g</span>
+              <span className={styles.macroValue}>{totals.protein}g / {macroTargets.protein}g</span>
             </div>
-            {renderProgressBar(totals.protein, (safeTarget * 0.3) / 4, 'var(--color-protein)')}
+            {renderProgressBar(totals.protein, macroTargets.protein, 'var(--color-protein)')}
           </div>
           
           <div className={styles.macroItem}>
             <div className={styles.macroHeader}>
               <span className={styles.macroName}>Carbos</span>
-              <span className={styles.macroValue}>{totals.carbs}g / {Math.round((safeTarget * 0.45) / 4)}g</span>
+              <span className={styles.macroValue}>{totals.carbs}g / {macroTargets.carbs}g</span>
             </div>
-            {renderProgressBar(totals.carbs, (safeTarget * 0.45) / 4, 'var(--color-carbs)')}
+            {renderProgressBar(totals.carbs, macroTargets.carbs, 'var(--color-carbs)')}
           </div>
           
           <div className={styles.macroItem}>
             <div className={styles.macroHeader}>
               <span className={styles.macroName}>Grasas</span>
-              <span className={styles.macroValue}>{totals.fat}g / {Math.round((safeTarget * 0.25) / 9)}g</span>
+              <span className={styles.macroValue}>{totals.fat}g / {macroTargets.fat}g</span>
             </div>
-            {renderProgressBar(totals.fat, (safeTarget * 0.25) / 9, 'var(--color-fat)')}
+            {renderProgressBar(totals.fat, macroTargets.fat, 'var(--color-fat)')}
           </div>
         </div>
       </div>

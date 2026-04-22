@@ -68,7 +68,7 @@ const CalendarStrip = ({ selectedDate, onDateSelect, activeDates }) => {
               <span className={styles.weekday}>
                 {format(date, 'EEE', { locale: es }).replace('.', '')}
               </span>
-              <div className={`${styles.dateNumber} ${isToday ? styles.today : ''}`}>
+              <div className={`${styles.dateNumber} ${isToday ? styles.today : ''} ${hasData ? styles.hasData : ''}`}>
                 {format(date, 'd')}
                 {hasData && <div className={styles.dot} />}
               </div>

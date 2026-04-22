@@ -1,0 +1,126 @@
+.section {
+  margin-bottom: 1.25rem;
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.title {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin-top: 2px;
+  font-size: 0.82rem;
+  color: var(--text-tertiary);
+}
+
+.scroller {
+  display: flex;
+  gap: 0.9rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.card,
+.loadingCard {
+  min-width: 220px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background:
+    linear-gradient(180deg, rgba(108, 92, 231, 0.12), transparent 45%),
+    var(--bg-card);
+  box-shadow: var(--shadow-sm);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem;
+}
+
+.loadingCard {
+  padding: 1rem;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.kcal {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.dateTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+}
+
+.name {
+  font-size: 1rem;
+  line-height: 1.15;
+}
+
+.meta {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.macroRow {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.macroRow span {
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.useBtn {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 40px;
+  border-radius: var(--radius-sm);
+  background: rgba(108, 92, 231, 0.14);
+  color: var(--accent-primary);
+  font-weight: 700;
+}
+
+@media (max-width: 520px) {
+  .card,
+  .loadingCard {
+    min-width: 78%;
+  }
+}

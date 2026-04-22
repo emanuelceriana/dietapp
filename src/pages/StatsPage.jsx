@@ -14,6 +14,14 @@ import { useStats } from '../hooks/useStats';
 import { useProfile } from '../hooks/useProfile';
 import { useWeights } from '../hooks/useWeights';
 import { calculateTDEE } from '../utils/nutrition';
+import {
+  buildProgressSummary,
+  calculateNutritionStreak,
+  downloadTextFile,
+  getPendingWeightDates,
+  getWeightTargetDays
+} from '../utils/progress';
+import AdherenceCard from '../components/progress/AdherenceCard';
 import WeightLogCard from '../components/progress/WeightLogCard';
 import styles from './StatsPage.module.css';
 
@@ -21,6 +29,7 @@ const StatsPage = () => {
   const [activeTab, setActiveTab] = useState('nutrition');
   const [viewDate, setViewDate] = useState(new Date());
   const [period, setPeriod] = useState('week');
+  const [exportStatus, setExportStatus] = useState('');
 
   const currentInterval = useMemo(() => {
     if (period === 'week') {
@@ -43,7 +52,15 @@ const StatsPage = () => {
     };
   }, [viewDate, period]);
 
+  const adherenceBaseDate = period === 'week' ? viewDate : new Date();
+  const adherenceInterval = useMemo(() => ({
+    start: startOfWeek(adherenceBaseDate, { weekStartsOn: 1 }),
+    end: endOfWeek(adherenceBaseDate, { weekStartsOn: 1 })
+  }), [adherenceBaseDate]);
+
   const { data: nutritionData, isLoading: statsLoading } = useStats(currentInterval);
+  const { data: adherenceNutritionData, isLoading: adherenceLoading } = useStats(adherenceInterval);
+  const { data: streakNutritionData } = useStats(30);
   const { profile, isLoading: profileLoading, updateProfile } = useProfile();
   const { weights, addWeight, deleteWeight, isLoading: weightsLoading } = useWeights();
 
@@ -105,6 +122,40 @@ const StatsPage = () => {
     if (activeNutritionDays.length === 0) return 0;
     return Math.round(periodTotals.kcal / activeNutritionDays.length);
   }, [activeNutritionDays, periodTotals.kcal]);
+
+  const adherenceWeights = useMemo(() => (
+    weights
+      .filter((weight) => {
+        const date = parseISO(weight.date);
+        return date >= adherenceInterval.start && date <= adherenceInterval.end;
+      })
+      .sort((a, b) => a.date.localeCompare(b.date))
+  ), [adherenceInterval, weights]);
+
+  const adherenceTargetDays = useMemo(
+    () => getWeightTargetDays(adherenceBaseDate, profile?.weightFrequency || 3),
+    [adherenceBaseDate, profile?.weightFrequency]
+  );
+
+  const completedAdherenceWeights = useMemo(() => {
+    const loggedDates = new Set(adherenceWeights.map((weight) => weight.date));
+    return adherenceTargetDays.filter((date) => loggedDates.has(format(date, 'yyyy-MM-dd'))).length;
+  }, [adherenceTargetDays, adherenceWeights]);
+
+  const pendingWeightDates = useMemo(
+    () => getPendingWeightDates(adherenceWeights, adherenceBaseDate, profile?.weightFrequency || 3),
+    [adherenceBaseDate, adherenceWeights, profile?.weightFrequency]
+  );
+
+  const adherenceNutritionDays = useMemo(
+    () => adherenceNutritionData.filter((day) => day.kcal > 0).length,
+    [adherenceNutritionData]
+  );
+
+  const nutritionStreak = useMemo(
+    () => calculateNutritionStreak(streakNutritionData, new Date()),
+    [streakNutritionData]
+  );
 
   const nutritionChartData = useMemo(() => {
     if (period !== 'year') {
@@ -171,11 +222,47 @@ const StatsPage = () => {
     return format(viewDate, 'yyyy', { locale: es });
   };
 
-  if (profileLoading || !profile || (activeTab === 'nutrition' && statsLoading)) {
+  const nutritionTarget = calculateTDEE(profile);
+
+  const getAdherenceLabel = () => (
+    `Seguimiento ${format(adherenceInterval.start, 'd MMM', { locale: es })} - ${format(adherenceInterval.end, 'd MMM', { locale: es })}`
+  );
+
+  const handleExportSummary = () => {
+    const title = period === 'week'
+      ? 'Resumen semanal'
+      : period === 'month'
+        ? 'Resumen mensual'
+        : 'Resumen anual';
+    const summary = buildProgressSummary({
+      title,
+      intervalLabel: getPeriodLabel(),
+      nutritionTarget,
+      nutritionData,
+      periodTotals,
+      averageDailyKcal,
+      weights: filteredWeights,
+      weightGoal: period === 'week'
+        ? getWeightTargetDays(viewDate, profile.weightFrequency).length
+        : filteredWeights.length,
+      nutritionStreak,
+      pendingWeightDates
+    });
+
+    const filename = `dietapp-${period}-${format(currentInterval.start, 'yyyy-MM-dd')}.txt`;
+    downloadTextFile(filename, summary);
+    setExportStatus(`Resumen exportado: ${filename}`);
+  };
+
+  const adherenceReminder = pendingWeightDates.length > 0
+    ? `Te faltan ${pendingWeightDates.length} pesaje(s) sugeridos: ${pendingWeightDates
+      .map((date) => format(date, 'EEE d MMM', { locale: es }))
+      .join(', ')}.`
+    : 'Semana cerrada: ya completaste todos los pesajes sugeridos.';
+
+  if (profileLoading || !profile || statsLoading || adherenceLoading) {
     return <div className={styles.loading}>Cargando estadísticas...</div>;
   }
-
-  const nutritionTarget = calculateTDEE(profile);
 
   return (
     <div className={styles.container}>
@@ -220,6 +307,20 @@ const StatsPage = () => {
           </button>
         </div>
       </div>
+
+      <AdherenceCard
+        title="Adherencia y recordatorios"
+        label={getAdherenceLabel()}
+        nutritionDays={adherenceNutritionDays}
+        nutritionGoal={5}
+        streakDays={nutritionStreak}
+        weightCount={completedAdherenceWeights}
+        weightGoal={adherenceTargetDays.length}
+        reminder={adherenceReminder}
+        onExport={handleExportSummary}
+      />
+
+      {exportStatus && <p className={styles.exportStatus}>{exportStatus}</p>}
 
       {activeTab === 'nutrition' ? (
         <div className={styles.nutritionView}>

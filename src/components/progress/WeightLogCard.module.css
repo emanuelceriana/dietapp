@@ -77,6 +77,10 @@
   color: var(--text-secondary);
 }
 
+.slotsScroller {
+  min-width: 0;
+}
+
 .slotsGrid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -157,6 +161,7 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .deleteBtn {
@@ -201,11 +206,18 @@
 .inputInfo {
   font-size: 0.85rem;
   color: var(--text-secondary);
+  line-height: 1.4;
 }
 
 .inputInfo strong {
   color: var(--accent-primary);
   text-transform: capitalize;
+}
+
+.helperText {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  line-height: 1.35;
 }
 
 .inputGroup {
@@ -233,6 +245,9 @@
 
 .addBtn {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 0 16px;
   background: var(--accent-primary);
   color: white;
@@ -249,6 +264,15 @@
 
 .addBtn:not(:disabled):active {
   transform: scale(0.95);
+}
+
+.errorText {
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(225, 112, 85, 0.24);
+  background: rgba(225, 112, 85, 0.08);
+  color: #ffb4a2;
+  font-size: 0.82rem;
 }
 
 @media (max-width: 420px) {
@@ -291,18 +315,31 @@
     padding: 3px 8px;
   }
 
+  .slotsScroller {
+    overflow-x: auto;
+    margin: 0 -4px;
+    padding: 0 4px 6px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+  }
+
+  .slotsScroller::-webkit-scrollbar {
+    display: none;
+  }
+
   .slotsGrid {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 6px;
+    width: max-content;
+    min-width: 100%;
+    grid-template-columns: repeat(7, minmax(54px, 1fr));
+    gap: 8px;
   }
 
   .slot {
-    flex: 0 0 calc((100% - 18px) / 4);
-    aspect-ratio: auto;
-    min-height: 58px;
-    padding: 7px 6px;
+    width: 54px;
+    min-height: 72px;
+    padding: 8px 6px;
+    scroll-snap-align: start;
   }
 
   .weightValueMini {
@@ -314,7 +351,13 @@
     right: 5px;
   }
 
+  .inputGroup {
+    flex-direction: column;
+  }
+
   .addBtn {
+    width: 100%;
+    min-height: 44px;
     padding: 0 12px;
   }
 }

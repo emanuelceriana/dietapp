@@ -45,6 +45,16 @@
   margin-left: 0;
 }
 
+.errorBanner {
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(225, 112, 85, 0.28);
+  background: rgba(225, 112, 85, 0.1);
+  color: #ffb4a2;
+  font-size: 0.9rem;
+}
+
 .mealList {
   transition: opacity 0.18s ease, transform 0.18s ease;
 }

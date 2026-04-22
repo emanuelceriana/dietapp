@@ -54,6 +54,52 @@
   text-align: center;
 }
 
+.insightRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.insightBadge {
+  flex: 1 1 180px;
+  min-width: 0;
+  padding: 0.85rem 0.95rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-secondary);
+}
+
+.insightDanger {
+  border-color: rgba(225, 112, 85, 0.24);
+  background: rgba(225, 112, 85, 0.08);
+}
+
+.insightLabel {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+}
+
+.insightValue {
+  display: block;
+  margin-top: 0.2rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.supportLine {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.supportLine strong {
+  color: var(--text-primary);
+}
+
 .title {
   font-size: 1.1rem;
   margin-bottom: 4px;

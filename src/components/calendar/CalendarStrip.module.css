@@ -126,14 +126,23 @@
   background: rgba(108, 92, 231, 0.1);
 }
 
+.hasData {
+  color: var(--accent-success);
+}
+
+.hasData.today {
+  color: var(--accent-success);
+  background: rgba(0, 184, 148, 0.12);
+}
+
 .dot {
   position: absolute;
   bottom: 2px;
   width: 5px;
   height: 5px;
-  background: var(--accent-primary);
+  background: var(--accent-success);
   border-radius: 50%;
-  box-shadow: 0 0 5px rgba(108, 92, 231, 0.4);
+  box-shadow: 0 0 5px rgba(0, 184, 148, 0.35);
 }
 
 .active .dot {

@@ -1,35 +1,21 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Trash2, Edit2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Trash2, Edit2, Copy } from 'lucide-react';
+import { calculateMealNutrition } from '../../utils/nutrition';
 import styles from './MealCard.module.css';
 
-const MealCard = ({ meal, ingredients, onDelete, onEdit }) => {
+const MealCard = ({ meal, ingredients, onDelete, onEdit, onDuplicate }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const getIngredient = (item) => (
     ingredients.find(ing => ing.id === item.ingredientId) || item.ingredient
   );
-
-  // Calculate meal totals
-  const calculateMacros = () => {
-    let totals = { kcal: 0, protein: 0, fat: 0, carbs: 0 };
-    
-    meal.items.forEach(item => {
-      const ingredient = getIngredient(item);
-      if (ingredient) {
-        const factor = ingredient.measureType === 'per_serving' 
-          ? item.quantity 
-          : item.quantity / 100;
-        
-        totals.kcal += (ingredient.kcal || 0) * factor;
-        totals.protein += (ingredient.protein || 0) * factor;
-        totals.carbs += (ingredient.carbs || 0) * factor;
-        totals.fat += (ingredient.fat || 0) * factor;
-      }
-    });
-    
-    return totals;
+  const hydratedMeal = {
+    ...meal,
+    items: (meal.items || []).map((item) => ({
+      ...item,
+      ingredient: getIngredient(item)
+    }))
   };
-
-  const macros = calculateMacros();
+  const macros = calculateMealNutrition(hydratedMeal, ingredients);
 
   return (
     <div className={`${styles.card} card`}>
@@ -39,15 +25,22 @@ const MealCard = ({ meal, ingredients, onDelete, onEdit }) => {
           <span className={styles.kcal}>{Math.round(macros.kcal)} kcal</span>
         </div>
         <div className={styles.actions}>
-          <button 
-            className={styles.actionBtn} 
+          <button
+            className={styles.actionBtn}
             onClick={(e) => { e.stopPropagation(); onEdit(meal); }}
             aria-label="Editar"
           >
             <Edit2 size={18} />
           </button>
-          <button 
-            className={styles.actionBtn} 
+          <button
+            className={styles.actionBtn}
+            onClick={(e) => { e.stopPropagation(); onDuplicate?.(meal); }}
+            aria-label="Duplicar"
+          >
+            <Copy size={18} />
+          </button>
+          <button
+            className={styles.actionBtn}
             onClick={(e) => { e.stopPropagation(); onDelete(meal.id); }}
             aria-label="Borrar"
           >

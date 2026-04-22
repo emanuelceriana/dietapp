@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, ChevronRight, Save, Layout, X } from 'lucide-react';
+import { Plus, Trash2, Layout, X } from 'lucide-react';
 import IngredientPicker from './IngredientPicker';
 import { useTemplates } from '../../hooks/useTemplates';
 import styles from './MealBuilder.module.css';
@@ -21,6 +21,8 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
   const [isPicking, setIsPicking] = useState(false);
   const [isShowingTemplates, setIsShowingTemplates] = useState(false);
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   
   const { templates, addTemplate, deleteTemplate } = useTemplates();
 
@@ -54,18 +56,26 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
   };
 
   const handleSave = async () => {
-    if (!mealName.trim() || selectedItems.length === 0) return;
+    if (isSaving || !mealName.trim() || selectedItems.length === 0) return;
+
+    setSaveError('');
+    setIsSaving(true);
     
     const mealData = {
-      name: mealName,
+      name: mealName.trim(),
       items: selectedItems.map(({ ingredientId, quantity }) => ({ ingredientId, quantity }))
     };
 
-    if (saveAsTemplate) {
-      await addTemplate(mealData);
+    try {
+      if (saveAsTemplate) {
+        await addTemplate(mealData);
+      }
+
+      await onSave(mealData);
+    } catch (err) {
+      setSaveError('No pude guardar la comida. Revisá la conexión e intentá de nuevo.');
+      setIsSaving(false);
     }
-    
-    onSave(mealData);
   };
 
   const loadTemplate = (template) => {
@@ -118,7 +128,11 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
   return (
     <div className={styles.container}>
       <div className={styles.headerActions}>
-        <button className={styles.templateToggle} onClick={() => setIsShowingTemplates(true)}>
+        <button
+          className={styles.templateToggle}
+          onClick={() => setIsShowingTemplates(true)}
+          disabled={isSaving}
+        >
           <Layout size={18} />
           <span>Usar Plantilla</span>
         </button>
@@ -130,6 +144,7 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
           className={styles.input}
           placeholder="Ej: Desayuno, Almuerzo..." 
           value={mealName}
+          disabled={isSaving}
           onChange={(e) => setMealName(e.target.value)}
         />
       </div>
@@ -137,7 +152,7 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
       <div className={styles.itemsSection}>
         <div className={styles.sectionHeader}>
           <h3 className={styles.sectionTitle}>Ingredientes</h3>
-          <button className={styles.addBtn} onClick={() => setIsPicking(true)}>
+          <button className={styles.addBtn} onClick={() => setIsPicking(true)} disabled={isSaving}>
             <Plus size={18} />
             <span>Añadir</span>
           </button>
@@ -158,12 +173,13 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
                   type="number"
                   className={styles.qtyInput}
                   value={item.quantity}
+                  disabled={isSaving}
                   onChange={(e) => updateQuantity(item.instanceId, e.target.value)}
                 />
                 <span className={styles.unit}>
                   {item.measureType === 'per_serving' ? 'ud' : 'g'}
                 </span>
-                <button className={styles.removeBtn} onClick={() => removeItem(item.instanceId)}>
+                <button className={styles.removeBtn} onClick={() => removeItem(item.instanceId)} disabled={isSaving}>
                   <Trash2 size={18} />
                 </button>
               </div>
@@ -183,6 +199,7 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
           <input 
             type="checkbox" 
             checked={saveAsTemplate}
+            disabled={isSaving}
             onChange={(e) => setSaveAsTemplate(e.target.checked)} 
           />
           <span>Guardar como plantilla reutilizable</span>
@@ -190,16 +207,17 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
       </div>
 
       <div className={styles.footer}>
+        {saveError && <div className={styles.errorText}>{saveError}</div>}
         <div className={styles.summary}>
           <span className={styles.totalLabel}>Total:</span>
           <span className={styles.totalValue}>{calculateTotalKcal()} kcal</span>
         </div>
         <button 
           className={styles.saveBtn} 
-          disabled={!mealName.trim() || selectedItems.length === 0}
+          disabled={isSaving || !mealName.trim() || selectedItems.length === 0}
           onClick={handleSave}
         >
-          Guardar Comida
+          {isSaving ? 'Guardando...' : 'Guardar Comida'}
         </button>
       </div>
     </div>
