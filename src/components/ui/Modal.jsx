@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import styles from './Modal.module.css';
 
-const Modal = ({ isOpen, onClose, title, children, closeOnBackdrop = false }) => {
+const Modal = ({ isOpen, onClose, title, children, closeOnBackdrop = false, disableClose = false }) => {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -18,7 +18,7 @@ const Modal = ({ isOpen, onClose, title, children, closeOnBackdrop = false }) =>
   if (!isOpen) return null;
 
   const handleOverlayClick = (event) => {
-    if (closeOnBackdrop && event.target === event.currentTarget) {
+    if (!disableClose && closeOnBackdrop && event.target === event.currentTarget) {
       onClose();
     }
   };
@@ -28,7 +28,7 @@ const Modal = ({ isOpen, onClose, title, children, closeOnBackdrop = false }) =>
       <div className={styles.sheet} onClick={(e) => e.stopPropagation()}>
         <header className={styles.header}>
           <h2 className={styles.title}>{title}</h2>
-          <button className={styles.close} onClick={onClose} aria-label="Cerrar">
+          <button className={styles.close} onClick={onClose} aria-label="Cerrar" disabled={disableClose}>
             <X size={24} />
           </button>
         </header>

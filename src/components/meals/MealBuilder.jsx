@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Plus, Trash2, Layout, X } from 'lucide-react';
 import IngredientPicker from './IngredientPicker';
 import { useTemplates } from '../../hooks/useTemplates';
@@ -23,6 +23,7 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const saveLockRef = useRef(false);
   
   const { templates, addTemplate, deleteTemplate } = useTemplates();
 
@@ -56,8 +57,9 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
   };
 
   const handleSave = async () => {
-    if (isSaving || !mealName.trim() || selectedItems.length === 0) return;
+    if (saveLockRef.current || isSaving || !mealName.trim() || selectedItems.length === 0) return;
 
+    saveLockRef.current = true;
     setSaveError('');
     setIsSaving(true);
     
@@ -75,6 +77,7 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
     } catch (err) {
       setSaveError('No pude guardar la comida. Revisá la conexión e intentá de nuevo.');
       setIsSaving(false);
+      saveLockRef.current = false;
     }
   };
 

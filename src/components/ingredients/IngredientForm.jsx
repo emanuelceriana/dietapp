@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import styles from './IngredientForm.module.css';
 
-const IngredientForm = ({ onSubmit, initialData }) => {
+const IngredientForm = ({ onSubmit, initialData, isSaving = false }) => {
   const [formData, setFormData] = useState(initialData || {
     name: '',
     measureType: 'per_100g',
@@ -12,9 +12,12 @@ const IngredientForm = ({ onSubmit, initialData }) => {
     carbs: '',
     isPublic: true
   });
+  const [saveError, setSaveError] = useState('');
+  const submitLockRef = useRef(false);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    setSaveError('');
     setFormData(prev => ({ 
       ...prev, 
       [name]: type === 'checkbox' ? checked : value 
@@ -22,11 +25,17 @@ const IngredientForm = ({ onSubmit, initialData }) => {
   };
 
   const handleTypeChange = (type) => {
+    setSaveError('');
     setFormData(prev => ({ ...prev, measureType: type }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitLockRef.current || isSaving) return;
+
+    submitLockRef.current = true;
+    setSaveError('');
+
     // Basic validation and formatting
     const submission = {
       ...formData,
@@ -35,7 +44,13 @@ const IngredientForm = ({ onSubmit, initialData }) => {
       fat: parseFloat(formData.fat) || 0,
       carbs: parseFloat(formData.carbs) || 0,
     };
-    onSubmit(submission);
+
+    try {
+      await onSubmit(submission);
+    } catch (err) {
+      setSaveError('No pude guardar el ingrediente. Revisá la conexión e intentá de nuevo.');
+      submitLockRef.current = false;
+    }
   };
 
   return (
@@ -46,6 +61,7 @@ const IngredientForm = ({ onSubmit, initialData }) => {
           className={styles.input}
           name="name"
           value={formData.name}
+          disabled={isSaving}
           onChange={handleChange}
           placeholder="Ej: Pechuga de Pollo"
           required
@@ -58,6 +74,7 @@ const IngredientForm = ({ onSubmit, initialData }) => {
           <button
             type="button"
             className={`${styles.toggle} ${formData.measureType === 'per_100g' ? styles.active : ''}`}
+            disabled={isSaving}
             onClick={() => handleTypeChange('per_100g')}
           >
             Por 100g/ml
@@ -65,6 +82,7 @@ const IngredientForm = ({ onSubmit, initialData }) => {
           <button
             type="button"
             className={`${styles.toggle} ${formData.measureType === 'per_serving' ? styles.active : ''}`}
+            disabled={isSaving}
             onClick={() => handleTypeChange('per_serving')}
           >
             Por Porción
@@ -79,6 +97,7 @@ const IngredientForm = ({ onSubmit, initialData }) => {
             className={styles.input}
             name="servingLabel"
             value={formData.servingLabel}
+            disabled={isSaving}
             onChange={handleChange}
             placeholder="Ej: 1 rebanada, 1 huevo"
           />
@@ -94,6 +113,7 @@ const IngredientForm = ({ onSubmit, initialData }) => {
             step="0.1"
             name="kcal"
             value={formData.kcal}
+            disabled={isSaving}
             onChange={handleChange}
             required
           />
@@ -106,6 +126,7 @@ const IngredientForm = ({ onSubmit, initialData }) => {
             step="0.1"
             name="protein"
             value={formData.protein}
+            disabled={isSaving}
             onChange={handleChange}
             required
           />
@@ -118,6 +139,7 @@ const IngredientForm = ({ onSubmit, initialData }) => {
             step="0.1"
             name="carbs"
             value={formData.carbs}
+            disabled={isSaving}
             onChange={handleChange}
             required
           />
@@ -130,6 +152,7 @@ const IngredientForm = ({ onSubmit, initialData }) => {
             step="0.1"
             name="fat"
             value={formData.fat}
+            disabled={isSaving}
             onChange={handleChange}
             required
           />
@@ -142,6 +165,7 @@ const IngredientForm = ({ onSubmit, initialData }) => {
           id="isPublic"
           name="isPublic"
           checked={formData.isPublic}
+          disabled={isSaving}
           onChange={handleChange}
           className={styles.checkbox}
         />
@@ -153,8 +177,10 @@ const IngredientForm = ({ onSubmit, initialData }) => {
         </p>
       </div>
 
-      <button type="submit" className={styles.submitBtn}>
-        Guardar Ingrediente
+      {saveError && <div className={styles.errorText}>{saveError}</div>}
+
+      <button type="submit" className={styles.submitBtn} disabled={isSaving}>
+        {isSaving ? 'Guardando...' : 'Guardar Ingrediente'}
       </button>
     </form>
   );

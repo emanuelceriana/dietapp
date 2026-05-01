@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useTransition } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import CalendarStrip from '../components/calendar/CalendarStrip';
 import DaySummaryCard from '../components/nutrition/DaySummaryCard';
@@ -21,6 +21,7 @@ const HomePage = () => {
   const [editingMeal, setEditingMeal] = useState(null);
   const [mealSaveError, setMealSaveError] = useState('');
   const [isDatePending, startDateTransition] = useTransition();
+  const reuseMealLockRef = useRef(false);
 
   useEffect(() => {
     if (searchParams.get('action') === 'add-meal') {
@@ -77,20 +78,24 @@ const HomePage = () => {
     setIsModalOpen(true);
   };
 
-  const handleSaveMeal = (mealData) => {
+  const handleSaveMeal = async (mealData) => {
     const mealId = editingMeal?.id;
     setMealSaveError('');
-    setIsModalOpen(false);
-    setEditingMeal(null);
 
     const savePromise = mealId
       ? updateMeal(mealId, mealData)
       : addMeal(mealData);
 
-    savePromise.catch((err) => {
+    try {
+      const savedMeal = await savePromise;
+      setIsModalOpen(false);
+      setEditingMeal(null);
+      return savedMeal;
+    } catch (err) {
       setMealSaveError('No pude guardar la comida. Intentá de nuevo en unos segundos.');
       console.error('Error saving meal:', err);
-    });
+      throw err;
+    }
   };
 
   const duplicateMeal = (meal) => ({
@@ -102,6 +107,9 @@ const HomePage = () => {
   });
 
   const handleReuseMeal = async (meal) => {
+    if (reuseMealLockRef.current) return;
+
+    reuseMealLockRef.current = true;
     setMealSaveError('');
 
     try {
@@ -109,6 +117,8 @@ const HomePage = () => {
     } catch (err) {
       setMealSaveError('No pude repetir la comida. Intentá de nuevo en unos segundos.');
       console.error('Error reusing meal:', err);
+    } finally {
+      reuseMealLockRef.current = false;
     }
   };
 

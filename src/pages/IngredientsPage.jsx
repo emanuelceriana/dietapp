@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useIngredients } from '../hooks/useIngredients';
 import { useAuth } from '../context/AuthContext';
 import IngredientCard from '../components/ingredients/IngredientCard';
@@ -14,6 +14,8 @@ const IngredientsPage = () => {
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState(null);
+  const [isSavingIngredient, setIsSavingIngredient] = useState(false);
+  const saveIngredientLockRef = useRef(false);
 
   const filteredIngredients = ingredients.filter(ing => 
     ing.name.toLowerCase().includes(search.toLowerCase())
@@ -34,6 +36,11 @@ const IngredientsPage = () => {
   };
 
   const handleSaveIngredient = async (data) => {
+    if (saveIngredientLockRef.current) return;
+
+    saveIngredientLockRef.current = true;
+    setIsSavingIngredient(true);
+
     try {
       if (editingIngredient) {
         await updateIngredient(editingIngredient.id, data);
@@ -41,8 +48,13 @@ const IngredientsPage = () => {
         await addIngredient(data);
       }
       setIsModalOpen(false);
+      setEditingIngredient(null);
     } catch (err) {
       console.error('Error saving ingredient:', err);
+      throw err;
+    } finally {
+      saveIngredientLockRef.current = false;
+      setIsSavingIngredient(false);
     }
   };
 
@@ -101,12 +113,18 @@ const IngredientsPage = () => {
 
       <Modal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          if (isSavingIngredient) return;
+          setIsModalOpen(false);
+          setEditingIngredient(null);
+        }}
         title={editingIngredient ? 'Editar Ingrediente' : 'Nuevo Ingrediente'}
+        disableClose={isSavingIngredient}
       >
         <IngredientForm 
           onSubmit={handleSaveIngredient} 
           initialData={editingIngredient} 
+          isSaving={isSavingIngredient}
         />
       </Modal>
     </div>
