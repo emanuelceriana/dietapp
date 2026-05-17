@@ -1,14 +1,14 @@
-# NutriTrack
+# Dietapp
 
 A full-stack nutrition tracker for logging meals, managing custom ingredients, and monitoring calorie and macro intake over time.
 
-NutriTrack is built as a React single-page app served by an Express API, with Supabase Authentication and PostgreSQL for persistent user data. The project is configured to deploy as a single Render Web Service.
+Dietapp is built as a React single-page app served by an Express API, with Supabase Authentication and PostgreSQL for persistent user data. The project is configured to deploy as a single Render Web Service.
 
 ## Features
 
 - Google sign-in with Supabase Auth
 - User-specific nutrition data stored in PostgreSQL
-- Ingredient library with per-100g and per-serving nutrition values
+- Ingredient library with per-100g, per-serving, and recipe-based nutrition values
 - Daily meal logging with calorie, protein, carb, and fat totals
 - Reusable meal templates
 - Date-based meal navigation

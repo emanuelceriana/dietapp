@@ -74,7 +74,7 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
       }
 
       await onSave(mealData);
-    } catch (err) {
+    } catch {
       setSaveError('No pude guardar la comida. Revisá la conexión e intentá de nuevo.');
       setIsSaving(false);
       saveLockRef.current = false;

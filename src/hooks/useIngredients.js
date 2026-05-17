@@ -3,7 +3,8 @@ import { apiFetch, invalidateApiCache } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const CACHE_PREFIX = 'dietapp:ingredients:v1';
+const CACHE_PREFIX = 'dietapp:ingredients:v3';
+const LEGACY_CACHE_PREFIXES = ['dietapp:ingredients:v1', 'dietapp:ingredients:v2'];
 const memoryCache = new Map();
 const listenersByUser = new Map();
 const requestsByUser = new Map();
@@ -11,6 +12,20 @@ const requestsByUser = new Map();
 const getCacheKey = (userId) => `${CACHE_PREFIX}:${userId}`;
 
 const normalizeIngredients = (value) => Array.isArray(value) ? value : [];
+
+const clearLegacyIngredientCaches = () => {
+  try {
+    Object.keys(window.localStorage).forEach((key) => {
+      if (LEGACY_CACHE_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+        window.localStorage.removeItem(key);
+      }
+    });
+  } catch (err) {
+    void err;
+  }
+};
+
+clearLegacyIngredientCaches();
 
 const readCache = (userId) => {
   if (!userId) return null;

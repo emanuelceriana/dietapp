@@ -1,16 +1,18 @@
-import { ChevronRight, Scale, Package, Trash2, Users, Lock } from 'lucide-react';
+import { ChevronRight, ChefHat, Scale, Package, Trash2, Users, Lock } from 'lucide-react';
 import styles from './IngredientCard.module.css';
 
 const IngredientCard = ({ ingredient, onClick, onDelete, currentUserId }) => {
   const isPerServing = ingredient.measureType === 'per_serving';
   const isOwner = ingredient.userId === currentUserId || !ingredient.userId; // !userId handles legacy or system items
   const isPublic = ingredient.isPublic;
+  const isRecipe = ingredient.sourceType === 'recipe';
 
   return (
     <div className={`${styles.card} card`} onClick={() => onClick(ingredient)}>
       <div className={styles.info}>
         <div className={styles.nameRow}>
           <h3 className={styles.name}>{ingredient.name}</h3>
+          {isRecipe && <ChefHat size={15} className={styles.recipeIcon} title="Receta" />}
           {!isOwner && <Users size={16} className={styles.communityIcon} title="Alimento de la comunidad" />}
           {isOwner && isPublic && <Users size={14} className={styles.myPublicIcon} title="Compartido con la comunidad" />}
         </div>
@@ -52,7 +54,7 @@ const IngredientCard = ({ ingredient, onClick, onDelete, currentUserId }) => {
       </div>
 
       <div className={styles.actions}>
-        {isOwner ? (
+        {isOwner && onDelete && (
           <button 
             className={styles.deleteBtn}
             onClick={(e) => { e.stopPropagation(); onDelete(ingredient.id); }}
@@ -60,7 +62,8 @@ const IngredientCard = ({ ingredient, onClick, onDelete, currentUserId }) => {
           >
             <Trash2 size={18} />
           </button>
-        ) : (
+        )}
+        {!isOwner && (
           <div className={styles.readOnlyIcon} title="Solo lectura">
             <Lock size={16} />
           </div>

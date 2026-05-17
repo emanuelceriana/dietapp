@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nutritrack-v1';
+const CACHE_VERSION = 'dietapp-v3';
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest',

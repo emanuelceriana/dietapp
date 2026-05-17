@@ -1,6 +1,6 @@
 {
-  "name": "NutriTrack",
-  "short_name": "NutriTrack",
+  "name": "Dietapp",
+  "short_name": "Dietapp",
   "description": "Track meals, ingredients, calories, and macros.",
   "start_url": "/",
   "scope": "/",

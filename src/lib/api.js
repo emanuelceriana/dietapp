@@ -2,11 +2,26 @@ import { supabase } from './supabase';
 
 const API_BASE_URL = '/api';
 const DEFAULT_TIMEOUT_MS = 15000;
-const API_CACHE_PREFIX = 'dietapp:api-cache:v1';
+const API_CACHE_PREFIX = 'dietapp:api-cache:v2';
+const LEGACY_API_CACHE_PREFIXES = ['dietapp:api-cache:v1'];
 const memoryCache = new Map();
 const pendingRequests = new Map();
 
 const getCacheKey = (userId, endpoint) => `${API_CACHE_PREFIX}:${userId}:${endpoint}`;
+
+const clearLegacyApiCaches = () => {
+  try {
+    Object.keys(window.localStorage).forEach((key) => {
+      if (LEGACY_API_CACHE_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+        window.localStorage.removeItem(key);
+      }
+    });
+  } catch (err) {
+    void err;
+  }
+};
+
+clearLegacyApiCaches();
 
 export const getApiCache = (userId, endpoint, maxAgeMs) => {
   if (!userId || !endpoint || !maxAgeMs) return null;

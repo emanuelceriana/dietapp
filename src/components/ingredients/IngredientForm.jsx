@@ -47,7 +47,7 @@ const IngredientForm = ({ onSubmit, initialData, isSaving = false }) => {
 
     try {
       await onSubmit(submission);
-    } catch (err) {
+    } catch {
       setSaveError('No pude guardar el ingrediente. Revisá la conexión e intentá de nuevo.');
       submitLockRef.current = false;
     }

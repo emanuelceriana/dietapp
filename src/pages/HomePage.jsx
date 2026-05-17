@@ -46,6 +46,18 @@ const HomePage = () => {
   const { ingredients } = useIngredients();
   const { recentMeals, isLoading: recentMealsLoading } = useRecentMeals(selectedDate);
   const { profile, isLoading: profileLoading, error: profileError, refresh: refreshProfile } = useProfile();
+  const displayActiveDates = useMemo(() => {
+    const nextDates = new Set(activeDates);
+    const selectedDateStr = formatDate(selectedDate);
+
+    if ((entry?.meals?.length || 0) > 0) {
+      nextDates.add(selectedDateStr);
+    } else {
+      nextDates.delete(selectedDateStr);
+    }
+
+    return nextDates;
+  }, [activeDates, entry?.meals?.length, selectedDate]);
 
   if (profileLoading) {
     return <div className={styles.loading}>Cargando...</div>;
@@ -123,18 +135,6 @@ const HomePage = () => {
   };
 
   const totals = calculateEntryNutrition(entry, ingredients);
-  const displayActiveDates = useMemo(() => {
-    const nextDates = new Set(activeDates);
-    const selectedDateStr = formatDate(selectedDate);
-
-    if ((entry?.meals?.length || 0) > 0) {
-      nextDates.add(selectedDateStr);
-    } else {
-      nextDates.delete(selectedDateStr);
-    }
-
-    return nextDates;
-  }, [activeDates, entry?.meals?.length, selectedDate]);
   const target = profile ? calculateTDEE(profile) : 2000;
   const isChangingDay = isDatePending || entriesLoading;
   const hasMeals = entry?.meals?.length > 0;

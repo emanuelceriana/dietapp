@@ -41,6 +41,12 @@
   flex-shrink: 0;
 }
 
+.recipeIcon {
+  color: #22c55e;
+  opacity: 0.9;
+  flex-shrink: 0;
+}
+
 .myPublicIcon {
   color: var(--accent-primary);
   opacity: 0.6;

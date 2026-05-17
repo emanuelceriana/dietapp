@@ -58,6 +58,9 @@ const toIngredient = (row) => row && ({
   carbs: numberOrNull(row.carbs),
   servingLabel: row.serving_label,
   isPublic: row.is_public,
+  sourceType: row.source_type || 'ingredient',
+  recipeItems: row.recipe_items || [],
+  recipeMeta: row.recipe_meta || {},
   userId: row.user_id,
   createdAt: row.created_at
 });
@@ -109,6 +112,13 @@ const ensureProfile = async (user) => {
 app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.set('Surrogate-Control', 'no-store');
+  next();
+});
 
 // --- API ROUTES ---
 
@@ -162,12 +172,25 @@ app.get('/api/ingredients', authenticate, async (req, res) => {
 });
 
 app.post('/api/ingredients', authenticate, async (req, res) => {
-  const { name, measureType, kcal, protein, fat, carbs, servingLabel, isPublic } = req.body;
+  const { name, measureType, kcal, protein, fat, carbs, servingLabel, isPublic, sourceType, recipeItems, recipeMeta } = req.body;
   try {
     const result = await query(
-      `INSERT INTO ingredients (user_id, name, measure_type, kcal, protein, fat, carbs, serving_label, is_public)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [req.user.id, name, measureType, kcal, protein, fat, carbs, servingLabel, isPublic ?? true]
+      `INSERT INTO ingredients (user_id, name, measure_type, kcal, protein, fat, carbs, serving_label, is_public, source_type, recipe_items, recipe_meta)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [
+        req.user.id,
+        name,
+        measureType,
+        kcal,
+        protein,
+        fat,
+        carbs,
+        servingLabel,
+        isPublic ?? true,
+        sourceType || 'ingredient',
+        JSON.stringify(recipeItems || []),
+        JSON.stringify(recipeMeta || {})
+      ]
     );
     res.json(toIngredient(result.rows[0]));
   } catch (err) {
@@ -176,14 +199,28 @@ app.post('/api/ingredients', authenticate, async (req, res) => {
 });
 
 app.put('/api/ingredients/:id', authenticate, async (req, res) => {
-  const { name, measureType, kcal, protein, fat, carbs, servingLabel, isPublic } = req.body;
+  const { name, measureType, kcal, protein, fat, carbs, servingLabel, isPublic, sourceType, recipeItems, recipeMeta } = req.body;
   try {
     const result = await query(
       `UPDATE ingredients
-       SET name=$3, measure_type=$4, kcal=$5, protein=$6, fat=$7, carbs=$8, serving_label=$9, is_public=$10
+       SET name=$3, measure_type=$4, kcal=$5, protein=$6, fat=$7, carbs=$8, serving_label=$9, is_public=$10, source_type=$11, recipe_items=$12, recipe_meta=$13
        WHERE id = $1 AND user_id = $2
        RETURNING *`,
-      [req.params.id, req.user.id, name, measureType, kcal, protein, fat, carbs, servingLabel, isPublic]
+      [
+        req.params.id,
+        req.user.id,
+        name,
+        measureType,
+        kcal,
+        protein,
+        fat,
+        carbs,
+        servingLabel,
+        isPublic,
+        sourceType || 'ingredient',
+        JSON.stringify(recipeItems || []),
+        JSON.stringify(recipeMeta || {})
+      ]
     );
 
     if (!result.rows[0]) {

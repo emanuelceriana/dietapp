@@ -64,6 +64,9 @@ const initializeDB = async () => {
         carbs NUMERIC DEFAULT 0,
         serving_label TEXT,
         is_public BOOLEAN DEFAULT true,
+        source_type TEXT DEFAULT 'ingredient',
+        recipe_items JSONB DEFAULT '[]'::jsonb,
+        recipe_meta JSONB DEFAULT '{}'::jsonb,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
 
@@ -88,6 +91,21 @@ const initializeDB = async () => {
     await query(`
       ALTER TABLE ingredients 
       ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT true;
+    `);
+
+    await query(`
+      ALTER TABLE ingredients 
+      ADD COLUMN IF NOT EXISTS source_type TEXT DEFAULT 'ingredient';
+    `);
+
+    await query(`
+      ALTER TABLE ingredients 
+      ADD COLUMN IF NOT EXISTS recipe_items JSONB DEFAULT '[]'::jsonb;
+    `);
+
+    await query(`
+      ALTER TABLE ingredients 
+      ADD COLUMN IF NOT EXISTS recipe_meta JSONB DEFAULT '{}'::jsonb;
     `);
 
     // Migration: Ensure ALL current ingredients are marked as public to fulfill the user request

@@ -50,7 +50,7 @@ const AuthGateway = ({ children }) => {
             <div className={styles.iconWrapper}>
               <Activity size={40} color="white" />
             </div>
-            <h1 className={styles.title}>NutriTrack</h1>
+            <h1 className={styles.title}>Dietapp</h1>
             <p className={styles.subtitle}>Tu nutrición, simplificada y segura</p>
           </div>
 
