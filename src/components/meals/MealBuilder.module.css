@@ -19,8 +19,8 @@
 .input {
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 12px;
+  border-radius: 12px;
+  padding: 13px;
   font-size: 1rem;
   color: var(--text-primary);
   outline: none;
@@ -87,7 +87,7 @@
   padding: 14px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: 16px;
 }
 
 .manualHeader {
@@ -176,7 +176,8 @@
   align-items: center;
   padding: 12px;
   background: var(--bg-secondary);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
 }
 
 .itemInfo {
@@ -208,7 +209,7 @@
   width: 60px;
   padding: 6px;
   text-align: center;
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Manrope', sans-serif;
   font-size: 0.9rem;
   color: var(--text-primary);
 }
@@ -264,20 +265,20 @@
 }
 
 .totalValue {
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Manrope', sans-serif;
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--accent-primary);
 }
 
 .saveBtn {
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  background: var(--accent-primary);
   color: white;
   padding: 1rem;
   border-radius: var(--radius-md);
   font-weight: 700;
   font-size: 1rem;
-  box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+  box-shadow: 0 8px 20px rgba(32, 164, 119, 0.2);
 }
 
 .saveBtn:disabled {

@@ -3,8 +3,8 @@
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 12px;
-  padding: 16px;
-  margin-bottom: 12px;
+  padding: 17px;
+  margin-bottom: 0;
   cursor: pointer;
   transition: var(--transition-normal);
   position: relative;
@@ -36,7 +36,7 @@
 }
 
 .communityIcon {
-  color: #a855f7;
+  color: #5b9bd5;
   opacity: 0.8;
   flex-shrink: 0;
 }
@@ -77,7 +77,7 @@
 }
 
 .macroValue {
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Manrope', sans-serif;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-primary);
@@ -85,6 +85,29 @@
   overflow-wrap: anywhere;
   text-align: center;
   line-height: 1.2;
+}
+
+@media (min-width: 900px) {
+  .card {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .info {
+    grid-column: 1;
+  }
+
+  .actions {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .macros {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin: 10px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+  }
 }
 
 .macroLabel {

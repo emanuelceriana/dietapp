@@ -112,10 +112,19 @@ const HomePage = () => {
 
   const duplicateMeal = (meal) => ({
     name: meal.name,
-    items: (meal.items || []).map((item) => ({
-      ingredientId: item.ingredientId,
-      quantity: item.quantity
-    }))
+    items: (meal.items || []).map((item) => item.type === 'manual'
+      ? {
+          type: 'manual',
+          name: item.name,
+          kcal: item.kcal,
+          protein: item.protein,
+          carbs: item.carbs,
+          fat: item.fat
+        }
+      : {
+          ingredientId: item.ingredientId,
+          quantity: item.quantity
+        })
   });
 
   const handleReuseMeal = async (meal) => {

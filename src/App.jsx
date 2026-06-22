@@ -14,15 +14,17 @@ function App() {
     <AuthProvider>
       <AuthGateway>
         <Router>
-          <main>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/ingredients" element={<IngredientsPage />} />
-              <Route path="/stats" element={<StatsPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-            </Routes>
-          </main>
-          <BottomNav />
+          <div className="app-shell">
+            <BottomNav />
+            <main className="app-content">
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/ingredients" element={<IngredientsPage />} />
+                <Route path="/stats" element={<StatsPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+              </Routes>
+            </main>
+          </div>
         </Router>
       </AuthGateway>
     </AuthProvider>

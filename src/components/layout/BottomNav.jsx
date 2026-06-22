@@ -12,7 +12,7 @@ const BottomNav = () => {
       </NavLink>
       <NavLink to="/ingredients" className={({ isActive }) => isActive ? styles.activeLink : styles.link}>
         <Beef size={24} />
-        <span>Ingred.</span>
+        <span>Biblioteca</span>
       </NavLink>
       <NavLink 
         to="/?action=add-meal" 
@@ -25,7 +25,7 @@ const BottomNav = () => {
       </NavLink>
       <NavLink to="/stats" className={({ isActive }) => isActive ? styles.activeLink : styles.link}>
         <BarChart2 size={24} />
-        <span>Stats</span>
+        <span>Progreso</span>
       </NavLink>
       <NavLink to="/profile" className={({ isActive }) => isActive ? styles.activeLink : styles.link}>
         <User size={24} />

@@ -1,8 +1,12 @@
 .card {
   display: flex;
   flex-direction: column;
-  padding: 1.5rem;
-  gap: 1.5rem;
+  padding: 22px;
+  gap: 20px;
+  border-color: rgba(32, 164, 119, 0.16);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(32, 164, 119, 0.11), transparent 36%),
+    var(--bg-card);
 }
 
 .chartContainer {
@@ -21,9 +25,9 @@
 }
 
 .kcalValue {
-  font-family: 'Outfit', sans-serif;
-  font-size: 2rem;
-  font-weight: 700;
+  font-family: 'Manrope', sans-serif;
+  font-size: 2.15rem;
+  font-weight: 800;
   line-height: 1;
 }
 
@@ -47,7 +51,7 @@
 .info {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 18px;
 }
 
 .mainInfo {
@@ -64,7 +68,7 @@
   flex: 1 1 180px;
   min-width: 0;
   padding: 0.85rem 0.95rem;
-  border-radius: var(--radius-full);
+  border-radius: 14px;
   border: 1px solid var(--border-subtle);
   background: var(--bg-secondary);
 }
@@ -85,7 +89,7 @@
 .insightValue {
   display: block;
   margin-top: 0.2rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Manrope', sans-serif;
   font-size: 0.95rem;
   line-height: 1.2;
 }
@@ -101,7 +105,7 @@
 }
 
 .title {
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   margin-bottom: 4px;
 }
 
@@ -134,16 +138,24 @@
 }
 
 .macroValue {
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Manrope', sans-serif;
   font-weight: 600;
 }
 
 .barContainer {
-  height: 8px;
+  height: 7px;
   background: var(--border-subtle);
   border-radius: var(--radius-full);
   overflow: hidden;
   display: flex;
+}
+
+@media (min-width: 900px) {
+  .card {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 28px 32px;
+  }
 }
 
 .bar {

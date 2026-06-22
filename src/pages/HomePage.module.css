@@ -5,14 +5,14 @@
 }
 
 .content {
-  padding: var(--calendar-strip-height) 1rem calc(var(--bottom-nav-height) + 2rem + env(safe-area-inset-bottom));
-  max-width: 600px;
+  padding: calc(var(--calendar-strip-height) + 24px) 20px calc(var(--bottom-nav-height) + 32px + env(safe-area-inset-bottom));
+  max-width: 760px;
   margin: 0 auto;
   width: 100%;
 }
 
 .mealsSection {
-  margin-top: 2rem;
+  margin-top: 28px;
 }
 
 .sectionHeader {
@@ -23,15 +23,18 @@
 }
 
 .sectionTitle {
-  font-size: 1.3rem;
-  font-weight: 700;
+  font-size: 1.15rem;
+  font-weight: 800;
 }
 
 .inlineAddBtn {
   margin-left: auto;
   color: var(--accent-primary);
   font-weight: 600;
-  font-size: 0.95rem;
+  padding: 8px 12px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  font-size: 0.82rem;
 }
 
 .syncStatus {
@@ -56,6 +59,8 @@
 }
 
 .mealList {
+  display: grid;
+  gap: 12px;
   transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
@@ -83,10 +88,29 @@
 .emptyState {
   background: var(--bg-card);
   border: 1px dashed var(--border-medium);
-  border-radius: var(--radius-md);
-  padding: 3rem 1.5rem;
+  border-radius: var(--radius-lg);
+  padding: 48px 24px;
   text-align: center;
   color: var(--text-secondary);
+}
+
+.emptyState button {
+  background: var(--accent-primary) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 20px rgba(32, 164, 119, 0.18);
+}
+
+@media (min-width: 900px) {
+  .content {
+    max-width: 1120px;
+    padding: 40px 48px 64px;
+  }
+
+  .mealsSection {
+    max-width: 760px;
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
 
 .loading {

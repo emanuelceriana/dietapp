@@ -1,1 +1,18 @@
-/* App-specific styles can go here. Global tokens are in index.css */
+.app-shell {
+  min-height: 100svh;
+}
+
+.app-content {
+  width: 100%;
+}
+
+@media (min-width: 900px) {
+  .app-shell {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+  }
+
+  .app-content {
+    grid-column: 2;
+  }
+}

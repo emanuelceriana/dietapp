@@ -25,8 +25,8 @@
   min-width: 0;
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 12px;
+  border-radius: 12px;
+  padding: 13px;
   font-size: 1rem;
   color: var(--text-primary);
   outline: none;
@@ -42,7 +42,7 @@
   grid-template-columns: 1fr 1fr;
   background: var(--bg-secondary);
   padding: 4px;
-  border-radius: var(--radius-md);
+  border-radius: 14px;
   border: 1px solid var(--border-subtle);
 }
 
@@ -70,13 +70,13 @@
 
 .submitBtn {
   margin-top: 1rem;
-  background: linear-gradient(135deg, var(--accent-primary), #a855f7);
+  background: var(--accent-primary);
   color: white;
   padding: 1rem;
   border-radius: var(--radius-md);
   font-weight: 700;
   font-size: 1.1rem;
-  box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+  box-shadow: 0 8px 20px rgba(32, 164, 119, 0.2);
   transition: var(--transition-normal);
 }
 

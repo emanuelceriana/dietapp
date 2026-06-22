@@ -4,7 +4,9 @@
   left: 0;
   right: 0;
   height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
-  background: var(--bg-card);
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--border-subtle);
   display: flex;
   justify-content: space-around;
@@ -21,9 +23,9 @@
   align-items: center;
   text-decoration: none;
   color: var(--text-tertiary);
-  font-size: 0.7rem;
-  font-weight: 500;
-  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  gap: 5px;
   transition: var(--transition-fast);
   flex: 1;
 }
@@ -31,6 +33,10 @@
 .activeLink {
   composes: link;
   color: var(--accent-primary);
+}
+
+.activeLink svg {
+  stroke-width: 2.5;
 }
 
 .addButton {
@@ -47,12 +53,12 @@
 .addIconWrapper {
   width: 56px;
   height: 56px;
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  background: var(--accent-primary);
   border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 15px rgba(108, 92, 231, 0.4);
+  box-shadow: 0 10px 24px rgba(32, 164, 119, 0.3);
   transition: var(--transition-normal);
 }
 
@@ -66,4 +72,71 @@
 
 .activeLink span {
   opacity: 1;
+}
+
+@media (min-width: 900px) {
+  .bottomNav {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 232px;
+    height: 100svh;
+    padding: 32px 20px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+    border-top: 0;
+    border-right: 1px solid var(--border-subtle);
+  }
+
+  .bottomNav::before {
+    content: 'DIETAPP';
+    position: absolute;
+    top: 34px;
+    left: 30px;
+    color: var(--text-primary);
+    font-family: 'Manrope', sans-serif;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+  }
+
+  .link,
+  .activeLink {
+    width: 100%;
+    flex: 0 0 auto;
+    min-height: 50px;
+    padding: 0 14px;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    border-radius: 14px;
+    font-size: 0.88rem;
+  }
+
+  .activeLink {
+    background: var(--accent-soft);
+  }
+
+  .addButton {
+    position: absolute;
+    top: auto;
+    bottom: 32px;
+    left: 20px;
+    right: 20px;
+    flex: 0 0 auto;
+  }
+
+  .addIconWrapper {
+    width: 100%;
+    height: 48px;
+    border-radius: 14px;
+  }
+
+  .addIconWrapper::after {
+    content: 'Nueva comida';
+    margin-left: 8px;
+    color: white;
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
 }

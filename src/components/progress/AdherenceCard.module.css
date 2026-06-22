@@ -2,8 +2,8 @@
   margin-bottom: 1rem;
   padding: 1.1rem 1.2rem;
   background:
-    radial-gradient(circle at top right, rgba(0, 206, 201, 0.14), transparent 32%),
-    radial-gradient(circle at top left, rgba(108, 92, 231, 0.18), transparent 38%),
+    radial-gradient(circle at top right, rgba(166, 217, 106, 0.14), transparent 32%),
+    radial-gradient(circle at top left, rgba(32, 164, 119, 0.16), transparent 38%),
     var(--bg-card);
 }
 
@@ -33,7 +33,7 @@
   min-height: 38px;
   padding: 0 0.85rem;
   border-radius: var(--radius-full);
-  background: rgba(108, 92, 231, 0.14);
+  background: var(--accent-soft);
   color: var(--accent-primary);
   font-size: 0.82rem;
   font-weight: 700;
@@ -65,7 +65,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
-  background: rgba(108, 92, 231, 0.12);
+  background: var(--accent-soft);
   color: var(--accent-primary);
 }
 
@@ -78,7 +78,7 @@
 .metricValue {
   display: block;
   margin-top: 2px;
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Manrope', sans-serif;
   font-size: 0.98rem;
 }
 
