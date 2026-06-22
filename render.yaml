@@ -1,18 +1,14 @@
 services:
   - type: web
-    name: dietapp
-    env: node
-    buildCommand: npm run render-build
-    startCommand: npm start
+    name: dietapp-static
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
-      - key: NODE_VERSION
-        value: 22
-      - key: DATABASE_URL
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
       - key: VITE_SUPABASE_URL
         sync: false
       - key: VITE_SUPABASE_ANON_KEY

@@ -1,9 +1,8 @@
 import { supabase } from './supabase';
 
-const API_BASE_URL = '/api';
 const DEFAULT_TIMEOUT_MS = 15000;
-const API_CACHE_PREFIX = 'dietapp:api-cache:v2';
-const LEGACY_API_CACHE_PREFIXES = ['dietapp:api-cache:v1'];
+const API_CACHE_PREFIX = 'dietapp:api-cache:v3';
+const LEGACY_API_CACHE_PREFIXES = ['dietapp:api-cache:v1', 'dietapp:api-cache:v2'];
 const memoryCache = new Map();
 const pendingRequests = new Map();
 
@@ -80,25 +79,350 @@ export const invalidateApiCache = (userId, endpointPrefixes = []) => {
   }
 };
 
-export const apiFetch = async (endpoint, options = {}) => {
-  if (!supabase) {
-    throw new Error('Supabase is not configured');
+const numberOrNull = (value) => {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const toProfile = (row) => row && ({
+  id: row.id,
+  name: row.name,
+  sex: row.sex,
+  age: row.age,
+  heightCm: numberOrNull(row.height_cm),
+  weightKg: numberOrNull(row.weight_kg),
+  activityLevel: row.activity_level,
+  manualGoal: row.manual_kcal,
+  weightFrequency: row.weight_frequency,
+  theme: row.theme
+});
+
+const toIngredient = (row) => row && ({
+  id: row.id,
+  name: row.name,
+  measureType: row.measure_type,
+  kcal: numberOrNull(row.kcal),
+  protein: numberOrNull(row.protein),
+  fat: numberOrNull(row.fat),
+  carbs: numberOrNull(row.carbs),
+  servingLabel: row.serving_label,
+  isPublic: row.is_public,
+  sourceType: row.source_type || 'ingredient',
+  recipeItems: row.recipe_items || [],
+  recipeMeta: row.recipe_meta || {},
+  userId: row.user_id,
+  createdAt: row.created_at
+});
+
+const toWeightLog = (row) => row && ({
+  id: row.id,
+  date: row.date,
+  weightKg: numberOrNull(row.weight_kg)
+});
+
+const toTemplate = (row) => row && ({
+  id: row.id,
+  name: row.name,
+  items: row.items || [],
+  createdAt: row.created_at
+});
+
+const throwIfError = ({ error }) => {
+  if (error) throw error;
+};
+
+const getSessionUser = async () => {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  if (!session?.user) throw new Error('Authentication required');
+  return session.user;
+};
+
+const ensureProfile = async (user) => {
+  const existing = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .maybeSingle();
+  throwIfError(existing);
+  if (existing.data) return toProfile(existing.data);
+
+  const created = await supabase
+    .from('profiles')
+    .insert({
+      id: user.id,
+      name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuario'
+    })
+    .select('*')
+    .single();
+
+  if (created.error?.code === '23505') {
+    const retry = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    throwIfError(retry);
+    return toProfile(retry.data);
   }
 
+  throwIfError(created);
+  return toProfile(created.data);
+};
+
+const getVisibleIngredients = async () => {
+  const result = await supabase.from('ingredients').select('*').order('name');
+  throwIfError(result);
+  return (result.data || []).map(toIngredient);
+};
+
+const attachIngredientsToMeals = (meals, ingredients) => {
+  const ingredientsById = new Map(ingredients.map((ingredient) => [ingredient.id, ingredient]));
+  return (meals || []).map((meal) => ({
+    ...meal,
+    items: (meal.items || []).map((item) => ({
+      ...item,
+      ingredient: ingredientsById.get(String(item.ingredientId)) || null
+    }))
+  }));
+};
+
+const handleProfile = async (user, method, body) => {
+  if (method === 'GET') return ensureProfile(user);
+  if (method !== 'PUT') throw new Error('Unsupported profile operation');
+
+  const result = await supabase
+    .from('profiles')
+    .update({
+      name: body.name,
+      sex: body.sex,
+      age: body.age,
+      height_cm: body.heightCm,
+      weight_kg: body.weightKg,
+      activity_level: body.activityLevel,
+      manual_kcal: body.manualGoal,
+      weight_frequency: body.weightFrequency,
+      theme: body.theme,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', user.id)
+    .select('*')
+    .single();
+  throwIfError(result);
+  return toProfile(result.data);
+};
+
+const ingredientPayload = (body, userId) => ({
+  user_id: userId,
+  name: body.name,
+  measure_type: body.measureType,
+  kcal: body.kcal,
+  protein: body.protein,
+  fat: body.fat,
+  carbs: body.carbs,
+  serving_label: body.servingLabel,
+  is_public: body.isPublic ?? true,
+  source_type: body.sourceType || 'ingredient',
+  recipe_items: body.recipeItems || [],
+  recipe_meta: body.recipeMeta || {}
+});
+
+const handleIngredients = async (user, method, body, id) => {
+  if (method === 'GET') return getVisibleIngredients();
+
+  if (method === 'POST') {
+    const result = await supabase
+      .from('ingredients')
+      .insert(ingredientPayload(body, user.id))
+      .select('*')
+      .single();
+    throwIfError(result);
+    return toIngredient(result.data);
+  }
+
+  if (method === 'PUT' && id) {
+    const { user_id: ignored, ...changes } = ingredientPayload(body, user.id);
+    void ignored;
+    const result = await supabase
+      .from('ingredients')
+      .update(changes)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select('*')
+      .single();
+    throwIfError(result);
+    return toIngredient(result.data);
+  }
+
+  if (method === 'DELETE' && id) {
+    const result = await supabase
+      .from('ingredients')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+    throwIfError(result);
+    return { success: true };
+  }
+
+  throw new Error('Unsupported ingredient operation');
+};
+
+const handleEntries = async (user, method, body, url, date) => {
+  if (method === 'GET') {
+    const [ingredients, entryResult] = await Promise.all([
+      getVisibleIngredients(),
+      date
+        ? supabase
+            .from('day_entries')
+            .select('id,date,meals')
+            .eq('user_id', user.id)
+            .eq('date', date)
+            .maybeSingle()
+        : supabase
+            .from('day_entries')
+            .select('id,date,meals')
+            .eq('user_id', user.id)
+            .gte('date', url.searchParams.get('start'))
+            .lte('date', url.searchParams.get('end'))
+            .order('date')
+    ]);
+    throwIfError(entryResult);
+
+    if (date) {
+      const entry = entryResult.data || { date, meals: [] };
+      return { ...entry, meals: attachIngredientsToMeals(entry.meals, ingredients) };
+    }
+
+    return (entryResult.data || []).map((entry) => ({
+      ...entry,
+      meals: attachIngredientsToMeals(entry.meals, ingredients)
+    }));
+  }
+
+  if (method === 'POST') {
+    const result = await supabase
+      .from('day_entries')
+      .upsert(
+        { user_id: user.id, date: body.date, meals: body.meals || [] },
+        { onConflict: 'user_id,date' }
+      )
+      .select('id,date,meals')
+      .single();
+    throwIfError(result);
+    const ingredients = await getVisibleIngredients();
+    return {
+      ...result.data,
+      meals: attachIngredientsToMeals(result.data.meals, ingredients)
+    };
+  }
+
+  throw new Error('Unsupported entry operation');
+};
+
+const handleTemplates = async (user, method, body, id) => {
+  if (method === 'GET') {
+    const result = await supabase
+      .from('meal_templates')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at');
+    throwIfError(result);
+    return (result.data || []).map(toTemplate);
+  }
+
+  if (method === 'POST') {
+    const result = await supabase
+      .from('meal_templates')
+      .insert({ user_id: user.id, name: body.name, items: body.items || [] })
+      .select('*')
+      .single();
+    throwIfError(result);
+    return toTemplate(result.data);
+  }
+
+  if (method === 'DELETE' && id) {
+    const result = await supabase
+      .from('meal_templates')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+    throwIfError(result);
+    return { success: true };
+  }
+
+  throw new Error('Unsupported template operation');
+};
+
+const handleWeights = async (user, method, body, id) => {
+  if (method === 'GET') {
+    const result = await supabase
+      .from('weight_logs')
+      .select('id,date,weight_kg')
+      .eq('user_id', user.id)
+      .order('date', { ascending: false });
+    throwIfError(result);
+    return (result.data || []).map(toWeightLog);
+  }
+
+  if (method === 'POST') {
+    const result = await supabase
+      .from('weight_logs')
+      .upsert(
+        { user_id: user.id, date: body.date, weight_kg: body.weightKg },
+        { onConflict: 'user_id,date' }
+      )
+      .select('id,date,weight_kg')
+      .single();
+    throwIfError(result);
+    return toWeightLog(result.data);
+  }
+
+  if (method === 'DELETE' && id) {
+    const result = await supabase
+      .from('weight_logs')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+    throwIfError(result);
+    return { success: true };
+  }
+
+  throw new Error('Unsupported weight operation');
+};
+
+const dispatchRequest = async (endpoint, options) => {
+  const user = await getSessionUser();
+  const method = (options.method || 'GET').toUpperCase();
+  const body = options.body ? JSON.parse(options.body) : {};
+  const url = new URL(endpoint, window.location.origin);
+  const parts = url.pathname.split('/').filter(Boolean);
+  const resource = parts[0];
+  const id = parts[1];
+
+  if (resource === 'init' && method === 'POST') {
+    return { success: true, profile: await ensureProfile(user) };
+  }
+  if (resource === 'profile') return handleProfile(user, method, body);
+  if (resource === 'ingredients') return handleIngredients(user, method, body, id);
+  if (resource === 'entries') return handleEntries(user, method, body, url, id);
+  if (resource === 'templates') return handleTemplates(user, method, body, id);
+  if (resource === 'weights') return handleWeights(user, method, body, id);
+
+  throw new Error(`Unknown API endpoint: ${endpoint}`);
+};
+
+export const apiFetch = async (endpoint, options = {}) => {
+  if (!supabase) throw new Error('Supabase is not configured');
+
   const {
-    authToken,
+    authToken: ignoredAuthToken,
     timeoutMs = DEFAULT_TIMEOUT_MS,
     cacheTtlMs = 0,
     cacheKey = endpoint,
-    ...fetchOptions
+    ...requestOptions
   } = options;
+  void ignoredAuthToken;
 
-  const { data: { session } } = authToken
-    ? { data: { session: null } }
-    : await supabase.auth.getSession();
-  const token = authToken || session?.access_token;
+  const { data: { session } } = await supabase.auth.getSession();
   const userId = session?.user?.id;
-  const method = (fetchOptions.method || 'GET').toUpperCase();
+  const method = (requestOptions.method || 'GET').toUpperCase();
   const canUseCache = method === 'GET' && cacheTtlMs > 0 && userId;
 
   if (canUseCache) {
@@ -110,48 +434,21 @@ export const apiFetch = async (endpoint, options = {}) => {
     if (pending) return pending;
   }
 
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error('API request timed out')), timeoutMs);
+  });
 
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...fetchOptions.headers
-  };
-
-  const request = fetch(`${API_BASE_URL}${endpoint}`, {
-    ...fetchOptions,
-    headers,
-    signal: controller.signal
-  })
-    .catch((err) => {
-      if (err.name === 'AbortError') {
-        throw new Error('API request timed out');
-      }
-      throw err;
-    })
-    .then(async (response) => {
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || 'API request failed');
-      }
-
-      const data = await response.json();
-      if (canUseCache) {
-        setApiCache(userId, cacheKey, data);
-      }
+  const request = Promise.race([dispatchRequest(endpoint, requestOptions), timeout])
+    .then((data) => {
+      if (canUseCache) setApiCache(userId, cacheKey, data);
       return data;
     })
     .finally(() => {
       window.clearTimeout(timeoutId);
-      if (canUseCache) {
-        pendingRequests.delete(getCacheKey(userId, cacheKey));
-      }
+      if (canUseCache) pendingRequests.delete(getCacheKey(userId, cacheKey));
     });
 
-  if (canUseCache) {
-    pendingRequests.set(getCacheKey(userId, cacheKey), request);
-  }
-
+  if (canUseCache) pendingRequests.set(getCacheKey(userId, cacheKey), request);
   return request;
 };
