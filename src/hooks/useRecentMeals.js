@@ -9,7 +9,9 @@ const RECENT_LOOKBACK_DAYS = 28;
 
 const getMealSignature = (meal) => {
   const items = (meal?.items || [])
-    .map((item) => `${item.ingredientId}:${Number(item.quantity) || 0}`)
+    .map((item) => item.type === 'manual'
+      ? `manual:${item.name || ''}:${Number(item.kcal) || 0}:${Number(item.protein) || 0}:${Number(item.carbs) || 0}:${Number(item.fat) || 0}`
+      : `${item.ingredientId}:${Number(item.quantity) || 0}`)
     .sort()
     .join('|');
 

@@ -9,6 +9,10 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
   const [selectedItems, setSelectedItems] = useState(() => {
     if (!initialMeal || !allIngredients) return [];
     return initialMeal.items.map(item => {
+      if (item.type === 'manual') {
+        return { ...item, instanceId: crypto.randomUUID() };
+      }
+
       const ing = allIngredients.find(i => i.id === item.ingredientId) || item.ingredient;
       return {
         ...ing,
@@ -19,6 +23,14 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
     }).filter(item => !!item.name);
   });
   const [isPicking, setIsPicking] = useState(false);
+  const [isAddingManual, setIsAddingManual] = useState(false);
+  const [manualItem, setManualItem] = useState({
+    name: '',
+    kcal: '',
+    protein: '',
+    carbs: '',
+    fat: ''
+  });
   const [isShowingTemplates, setIsShowingTemplates] = useState(false);
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -49,8 +61,33 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
     ));
   };
 
+  const updateManualField = (field, value) => {
+    setManualItem((current) => ({ ...current, [field]: value }));
+  };
+
+  const addManualItem = () => {
+    const normalized = {
+      type: 'manual',
+      name: manualItem.name.trim() || 'Estimación manual',
+      kcal: Math.max(Number(manualItem.kcal) || 0, 0),
+      protein: Math.max(Number(manualItem.protein) || 0, 0),
+      carbs: Math.max(Number(manualItem.carbs) || 0, 0),
+      fat: Math.max(Number(manualItem.fat) || 0, 0),
+      instanceId: crypto.randomUUID()
+    };
+
+    if (normalized.kcal === 0 && normalized.protein === 0 && normalized.carbs === 0 && normalized.fat === 0) {
+      return;
+    }
+
+    setSelectedItems((current) => [...current, normalized]);
+    setManualItem({ name: '', kcal: '', protein: '', carbs: '', fat: '' });
+    setIsAddingManual(false);
+  };
+
   const calculateTotalKcal = () => {
     return Math.round(selectedItems.reduce((acc, item) => {
+      if (item.type === 'manual') return acc + (Number(item.kcal) || 0);
       const factor = item.measureType === 'per_serving' ? item.quantity : item.quantity / 100;
       return acc + (item.kcal * factor);
     }, 0));
@@ -65,7 +102,19 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
     
     const mealData = {
       name: mealName.trim(),
-      items: selectedItems.map(({ ingredientId, quantity }) => ({ ingredientId, quantity }))
+      items: selectedItems.map((item) => item.type === 'manual'
+        ? {
+            type: 'manual',
+            name: item.name,
+            kcal: item.kcal,
+            protein: item.protein,
+            carbs: item.carbs,
+            fat: item.fat
+          }
+        : {
+            ingredientId: item.ingredientId,
+            quantity: item.quantity
+          })
     };
 
     try {
@@ -84,6 +133,10 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
   const loadTemplate = (template) => {
     setMealName(template.name);
     const newItems = template.items.map(item => {
+      if (item.type === 'manual') {
+        return { ...item, instanceId: crypto.randomUUID() };
+      }
+
       const ing = allIngredients.find(i => i.id === item.ingredientId) || item.ingredient;
       return {
         ...ing,
@@ -154,12 +207,80 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
 
       <div className={styles.itemsSection}>
         <div className={styles.sectionHeader}>
-          <h3 className={styles.sectionTitle}>Ingredientes</h3>
-          <button className={styles.addBtn} onClick={() => setIsPicking(true)} disabled={isSaving}>
-            <Plus size={18} />
-            <span>Añadir</span>
-          </button>
+          <h3 className={styles.sectionTitle}>Contenido</h3>
+          <div className={styles.addActions}>
+            <button
+              className={styles.manualBtn}
+              onClick={() => setIsAddingManual((current) => !current)}
+              disabled={isSaving}
+            >
+              <Plus size={18} />
+              <span>Estimación</span>
+            </button>
+            <button className={styles.addBtn} onClick={() => setIsPicking(true)} disabled={isSaving}>
+              <Plus size={18} />
+              <span>Ingrediente</span>
+            </button>
+          </div>
         </div>
+
+        {isAddingManual && (
+          <div className={styles.manualForm}>
+            <div className={styles.manualHeader}>
+              <div>
+                <strong>Agregar estimación</strong>
+                <span>No se guarda como ingrediente</span>
+              </div>
+              <button
+                className={styles.closeManualBtn}
+                onClick={() => setIsAddingManual(false)}
+                aria-label="Cerrar estimación"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <input
+              className={styles.input}
+              placeholder="Descripción opcional (ej: pizza)"
+              value={manualItem.name}
+              disabled={isSaving}
+              onChange={(event) => updateManualField('name', event.target.value)}
+            />
+
+            <div className={styles.manualGrid}>
+              {[
+                ['kcal', 'Calorías', 'kcal'],
+                ['protein', 'Proteína', 'g'],
+                ['carbs', 'Carbos', 'g'],
+                ['fat', 'Grasas', 'g']
+              ].map(([field, label, unit]) => (
+                <label key={field} className={styles.manualField}>
+                  <span>{label}</span>
+                  <div>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={manualItem[field]}
+                      disabled={isSaving}
+                      onChange={(event) => updateManualField(field, event.target.value)}
+                    />
+                    <small>{unit}</small>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <button
+              className={styles.addManualBtn}
+              onClick={addManualItem}
+              disabled={isSaving}
+            >
+              Agregar al plato
+            </button>
+          </div>
+        )}
 
         <div className={styles.itemList}>
           {selectedItems.map((item) => (
@@ -167,21 +288,27 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
               <div className={styles.itemInfo}>
                 <span className={styles.itemName}>{item.name}</span>
                 <span className={styles.itemMacros}>
-                  {Math.round(item.kcal * (item.measureType === 'per_serving' ? item.quantity : item.quantity / 100))} kcal
+                  {item.type === 'manual'
+                    ? `${Math.round(Number(item.kcal) || 0)} kcal · P ${Number(item.protein) || 0}g · C ${Number(item.carbs) || 0}g · G ${Number(item.fat) || 0}g`
+                    : `${Math.round(item.kcal * (item.measureType === 'per_serving' ? item.quantity : item.quantity / 100))} kcal`}
                 </span>
               </div>
               
               <div className={styles.qtyControl}>
-                <input 
-                  type="number"
-                  className={styles.qtyInput}
-                  value={item.quantity}
-                  disabled={isSaving}
-                  onChange={(e) => updateQuantity(item.instanceId, e.target.value)}
-                />
-                <span className={styles.unit}>
-                  {item.measureType === 'per_serving' ? 'ud' : 'g'}
-                </span>
+                {item.type !== 'manual' && (
+                  <>
+                    <input
+                      type="number"
+                      className={styles.qtyInput}
+                      value={item.quantity}
+                      disabled={isSaving}
+                      onChange={(e) => updateQuantity(item.instanceId, e.target.value)}
+                    />
+                    <span className={styles.unit}>
+                      {item.measureType === 'per_serving' ? 'ud' : 'g'}
+                    </span>
+                  </>
+                )}
                 <button className={styles.removeBtn} onClick={() => removeItem(item.instanceId)} disabled={isSaving}>
                   <Trash2 size={18} />
                 </button>

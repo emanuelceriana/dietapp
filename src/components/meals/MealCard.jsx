@@ -6,6 +6,9 @@ import styles from './MealCard.module.css';
 const MealCard = ({ meal, ingredients, onDelete, onEdit, onDuplicate }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const getIngredient = (item) => (
+    item.type === 'manual'
+      ? null
+      :
     ingredients.find(ing => ing.id === item.ingredientId) || item.ingredient
   );
   const hydratedMeal = {
@@ -54,6 +57,15 @@ const MealCard = ({ meal, ingredients, onDelete, onEdit, onDuplicate }) => {
         <div className={styles.details}>
           <div className={styles.itemList}>
             {meal.items.map((item, idx) => {
+              if (item.type === 'manual') {
+                return (
+                  <div key={idx} className={styles.item}>
+                    <span className={styles.itemName}>{item.name || 'Estimación manual'}</span>
+                    <span className={styles.itemQty}>{Math.round(Number(item.kcal) || 0)} kcal</span>
+                  </div>
+                );
+              }
+
               const ing = getIngredient(item);
               return (
                 <div key={idx} className={styles.item}>

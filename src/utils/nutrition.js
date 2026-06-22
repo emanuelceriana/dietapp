@@ -44,6 +44,14 @@ export const calculateMealNutrition = (meal, ingredients = []) => {
   const totals = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
 
   (meal?.items || []).forEach((item) => {
+    if (item.type === 'manual') {
+      totals.kcal += Number(item.kcal) || 0;
+      totals.protein += Number(item.protein) || 0;
+      totals.carbs += Number(item.carbs) || 0;
+      totals.fat += Number(item.fat) || 0;
+      return;
+    }
+
     const ingredient = getIngredientFromItem(item, ingredients);
     if (!ingredient) return;
 
