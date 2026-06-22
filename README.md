@@ -11,9 +11,6 @@ No application server is required.
 - PostgreSQL Row Level Security (RLS) for authorization
 - Render Static Site for hosting
 
-The old `server/` directory remains temporarily as rollback/reference code, but production and
-local development no longer use it.
-
 ## Access model
 
 - Profiles, weights, daily entries, and templates are private to their owner.

@@ -9,20 +9,15 @@ lerna-debug.log*
 
 # Dependencies
 node_modules/
-server/node_modules/
 
 # Build output
 dist/
 dist-ssr/
-server/dist/
 
 # Environment variables
 .env
 .env.*
-server/.env
-server/.env.*
 !.env.example
-!server/.env.example
 
 # Local config
 *.local
