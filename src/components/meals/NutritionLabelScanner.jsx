@@ -12,6 +12,46 @@ const EMPTY_FORM = {
   fat: ''
 };
 
+const CAMERA_QUALITY = {
+  width: { ideal: 1920 },
+  height: { ideal: 1080 }
+};
+
+const CAMERA_CONSTRAINTS = [
+  {
+    audio: false,
+    video: {
+      facingMode: { exact: 'environment' },
+      ...CAMERA_QUALITY
+    }
+  },
+  {
+    audio: false,
+    video: {
+      facingMode: { ideal: 'environment' },
+      ...CAMERA_QUALITY
+    }
+  },
+  { audio: false, video: true }
+];
+
+const stopMediaStream = (stream) => {
+  stream?.getTracks?.().forEach((track) => track.stop());
+};
+
+const cameraErrorMessage = (cameraError) => {
+  if (cameraError?.name === 'NotAllowedError') {
+    return 'El permiso de cámara está bloqueado.';
+  }
+  if (cameraError?.name === 'NotReadableError') {
+    return 'La cámara está siendo usada por otra aplicación.';
+  }
+  if (['NotFoundError', 'OverconstrainedError'].includes(cameraError?.name)) {
+    return 'No encontré una cámara disponible.';
+  }
+  return 'No pude abrir la cámara.';
+};
+
 const loadImage = (url) => new Promise((resolve, reject) => {
   const image = new Image();
   image.onload = () => resolve(image);
@@ -57,6 +97,8 @@ const numericValue = (value) => {
 
 const NutritionLabelScanner = ({ barcode = '', onAddIngredient, onSelect, onBack, onCancel }) => {
   const fileInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
   const workerRef = useRef(null);
   const previewUrlRef = useRef('');
   const requestRef = useRef(0);
@@ -70,6 +112,9 @@ const NutritionLabelScanner = ({ barcode = '', onAddIngredient, onSelect, onBack
   const [readWarning, setReadWarning] = useState('');
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [cameraStatus, setCameraStatus] = useState('starting');
+  const [cameraError, setCameraError] = useState('');
+  const [cameraAttempt, setCameraAttempt] = useState(0);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -80,6 +125,95 @@ const NutritionLabelScanner = ({ barcode = '', onAddIngredient, onSelect, onBack
       if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (previewUrl) return undefined;
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraStatus('error');
+      setCameraError('Este navegador no permite usar la cámara.');
+      return undefined;
+    }
+
+    let cancelled = false;
+    let activeStream;
+    let activeVideo;
+
+    setCameraStatus('starting');
+    setCameraError('');
+
+    const openCamera = async () => {
+      let lastError;
+
+      for (const constraints of CAMERA_CONSTRAINTS) {
+        try {
+          return await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (nextError) {
+          lastError = nextError;
+          if (['NotAllowedError', 'NotReadableError', 'SecurityError'].includes(nextError?.name)) break;
+        }
+      }
+
+      throw lastError || new Error('No pude abrir la cámara.');
+    };
+
+    const startCamera = async () => {
+      try {
+        const stream = await openCamera();
+        if (cancelled) {
+          stopMediaStream(stream);
+          return;
+        }
+
+        const video = videoRef.current;
+        if (!video) {
+          stopMediaStream(stream);
+          return;
+        }
+
+        activeStream = stream;
+        activeVideo = video;
+        streamRef.current = stream;
+        video.srcObject = stream;
+        video.muted = true;
+        video.setAttribute('playsinline', '');
+        await video.play();
+
+        if (cancelled) {
+          stopMediaStream(stream);
+          return;
+        }
+
+        const track = stream.getVideoTracks()[0];
+        try {
+          const capabilities = track?.getCapabilities?.();
+          if (capabilities?.focusMode?.includes('continuous')) {
+            await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+          }
+        } catch {
+          // Continuous focus is optional and not available on every browser.
+        }
+
+        setCameraStatus('ready');
+      } catch (nextError) {
+        if (!cancelled) {
+          setCameraStatus('error');
+          setCameraError(cameraErrorMessage(nextError));
+        }
+      }
+    };
+
+    // Avoid opening two competing streams during React StrictMode's development remount.
+    const cameraStartTimer = window.setTimeout(() => { void startCamera(); }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(cameraStartTimer);
+      stopMediaStream(activeStream);
+      if (streamRef.current === activeStream) streamRef.current = null;
+      if (activeVideo?.srcObject === activeStream) activeVideo.srcObject = null;
+    };
+  }, [cameraAttempt, previewUrl]);
 
   const replacePreview = (file) => {
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
@@ -161,6 +295,33 @@ const NutritionLabelScanner = ({ barcode = '', onAddIngredient, onSelect, onBack
     void processPhoto(file);
   };
 
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    if (!video || cameraStatus !== 'ready' || !video.videoWidth || !video.videoHeight) {
+      setCameraError('La cámara todavía no está lista. Esperá un momento.');
+      return;
+    }
+
+    setCameraError('');
+    setCameraStatus('capturing');
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        setCameraStatus('ready');
+        setCameraError('No pude capturar la foto. Probá nuevamente.');
+        return;
+      }
+
+      const photo = new File([blob], `tabla-nutricional-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      void processPhoto(photo);
+    }, 'image/jpeg', 0.92);
+  };
+
   const updateField = (event) => {
     const { name, value } = event.target;
     setError('');
@@ -209,7 +370,11 @@ const NutritionLabelScanner = ({ barcode = '', onAddIngredient, onSelect, onBack
     setReadWarning('');
     setError('');
     setProgress(0);
-    fileInputRef.current?.click();
+    setCameraError('');
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    previewUrlRef.current = '';
+    setPreviewUrl('');
+    setCameraAttempt((current) => current + 1);
   };
 
   return (
@@ -232,20 +397,52 @@ const NutritionLabelScanner = ({ barcode = '', onAddIngredient, onSelect, onBack
         className={styles.fileInput}
         type="file"
         accept="image/*"
-        capture="environment"
         onChange={handleFileChange}
       />
 
       {!previewUrl && (
         <div className={styles.captureView}>
-          <div className={styles.captureIcon}><ScanText size={34} /></div>
+          <div className={styles.cameraFrame}>
+            <video ref={videoRef} autoPlay muted playsInline />
+            <div className={styles.cameraGuide} aria-hidden="true" />
+            {cameraStatus === 'starting' && (
+              <div className={styles.cameraOverlay}>
+                <Camera size={27} />
+                <span>Abriendo cámara...</span>
+              </div>
+            )}
+          </div>
           <div>
             <h4>Fotografiá solamente la tabla</h4>
             <p>Buscá buena luz, mantené el envase recto y asegurate de incluir la columna por 100 g.</p>
           </div>
-          <button type="button" className={styles.primaryButton} onClick={() => fileInputRef.current?.click()}>
-            <Camera size={19} /> Tomar foto
-          </button>
+          {cameraStatus !== 'error' ? (
+            <button
+              type="button"
+              className={styles.primaryButton}
+              onClick={capturePhoto}
+              disabled={cameraStatus !== 'ready'}
+            >
+              <Camera size={19} /> {cameraStatus === 'capturing' ? 'Capturando...' : 'Tomar foto'}
+            </button>
+          ) : (
+            <div className={styles.cameraFallback}>
+              <div className={styles.error} role="alert">{cameraError}</div>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => setCameraAttempt((current) => current + 1)}
+              >
+                <RotateCcw size={17} /> Reintentar cámara
+              </button>
+              <button type="button" className={styles.secondaryButton} onClick={() => fileInputRef.current?.click()}>
+                <ImagePlus size={17} /> Elegir una imagen
+              </button>
+            </div>
+          )}
+          {cameraError && cameraStatus !== 'error' && (
+            <div className={styles.error} role="alert">{cameraError}</div>
+          )}
         </div>
       )}
 

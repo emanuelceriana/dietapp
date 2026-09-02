@@ -43,7 +43,7 @@ const HomePage = () => {
     deleteMeal
   } = useDayEntries(selectedDate);
   const activeDates = useAllEntryDates(selectedDate);
-  const { ingredients, addIngredient } = useIngredients();
+  const { ingredients, addIngredient, updateIngredient } = useIngredients();
   const { recentMeals, isLoading: recentMealsLoading } = useRecentMeals(selectedDate);
   const { profile, isLoading: profileLoading, error: profileError, refresh: refreshProfile } = useProfile();
   const displayActiveDates = useMemo(() => {
@@ -241,6 +241,8 @@ const HomePage = () => {
           key={mealDraftKey}
           onSave={handleSaveMeal} 
           onAddIngredient={addIngredient}
+          onUpdateIngredient={updateIngredient}
+          currentUserId={profile?.id}
           initialMeal={editingMeal} 
           allIngredients={ingredients}
           draftKey={mealDraftKey}

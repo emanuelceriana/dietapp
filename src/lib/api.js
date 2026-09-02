@@ -235,6 +235,7 @@ const handleIngredients = async (user, method, body, id) => {
         .from('ingredients')
         .select('*')
         .eq('barcode', body.barcode)
+        .eq('user_id', user.id)
         .order('created_at')
         .limit(1);
       throwIfError(existing);

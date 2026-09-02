@@ -51,6 +51,53 @@
   border-radius: var(--radius-md);
 }
 
+.cameraFrame {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  min-height: 220px;
+  background: #020806;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+}
+
+.cameraFrame video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cameraGuide {
+  position: absolute;
+  inset: 12%;
+  pointer-events: none;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 999px rgba(2, 8, 6, 0.18);
+}
+
+.cameraOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  color: var(--text-secondary);
+  background: #020806;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.cameraFallback {
+  display: grid;
+  width: 100%;
+  gap: 0.65rem;
+}
+
 .captureView h4,
 .reviewHeading h4 {
   margin-bottom: 0.25rem;
@@ -253,6 +300,14 @@
 }
 
 @media (max-width: 420px) {
+  .captureView {
+    padding: 1rem;
+  }
+
+  .cameraFrame {
+    min-height: 190px;
+  }
+
   .nutrientsGrid {
     gap: 0.65rem;
   }
@@ -262,4 +317,3 @@
     gap: 0.25rem;
   }
 }
-

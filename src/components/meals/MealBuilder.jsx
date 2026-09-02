@@ -80,7 +80,15 @@ const draftSignature = (state) => JSON.stringify({
   saveAsTemplate: state.saveAsTemplate
 });
 
-const MealBuilder = ({ onSave, onAddIngredient, initialMeal, allIngredients = [], draftKey }) => {
+const MealBuilder = ({
+  onSave,
+  onAddIngredient,
+  onUpdateIngredient,
+  currentUserId,
+  initialMeal,
+  allIngredients = [],
+  draftKey
+}) => {
   const [startingState] = useState(() => {
     const baseState = stateFromMeal(initialMeal, allIngredients);
     return {
@@ -255,6 +263,8 @@ const MealBuilder = ({ onSave, onAddIngredient, initialMeal, allIngredients = []
         <BarcodeScanner
           ingredients={allIngredients}
           onAddIngredient={onAddIngredient}
+          onUpdateIngredient={onUpdateIngredient}
+          currentUserId={currentUserId}
           onSelect={addScannedItem}
           onScanNutritionLabel={(barcode) => {
             setNutritionBarcode(barcode);

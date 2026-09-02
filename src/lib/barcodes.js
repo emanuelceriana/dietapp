@@ -15,9 +15,13 @@ const roundNutrient = (value) => Math.round(value * 10) / 10;
 
 const buildProductName = (product, barcode) => {
   const productName = [
+    product.product_name_pl,
     product.product_name_es,
-    product.product_name,
+    product.product_name_en,
+    product.generic_name_pl,
     product.generic_name_es,
+    product.generic_name_en,
+    product.product_name,
     product.generic_name
   ].find((value) => typeof value === 'string' && value.trim())?.trim();
   const brand = typeof product.brands === 'string' ? product.brands.split(',')[0].trim() : '';
@@ -37,13 +41,19 @@ export const lookupProductByBarcode = async (value, { signal } = {}) => {
   const fields = [
     'code',
     'product_name',
+    'product_name_pl',
     'product_name_es',
+    'product_name_en',
     'generic_name',
+    'generic_name_pl',
     'generic_name_es',
+    'generic_name_en',
     'brands',
+    'image_front_url',
+    'image_url',
     'nutriments'
   ].join(',');
-  const url = `${OPEN_FOOD_FACTS_URL}/${encodeURIComponent(barcode)}.json?fields=${encodeURIComponent(fields)}&lc=es`;
+  const url = `${OPEN_FOOD_FACTS_URL}/${encodeURIComponent(barcode)}.json?fields=${encodeURIComponent(fields)}&cc=pl&lc=en`;
   const response = await fetch(url, { signal });
 
   if (!response.ok) {
@@ -78,6 +88,8 @@ export const lookupProductByBarcode = async (value, { signal } = {}) => {
     carbs: roundNutrient(carbs ?? 0),
     fat: roundNutrient(fat ?? 0),
     isPublic: false,
-    sourceType: 'ingredient'
+    sourceType: 'ingredient',
+    imageUrl: data.product.image_front_url || data.product.image_url || '',
+    dataSource: 'Open Food Facts'
   };
 };

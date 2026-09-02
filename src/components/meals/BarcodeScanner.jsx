@@ -9,15 +9,21 @@ import {
 } from '../../lib/barcodes';
 import styles from './BarcodeScanner.module.css';
 
-const CAMERA_CONSTRAINTS = {
+const CAMERA_QUALITY = {
+  width: { ideal: 1920 },
+  height: { ideal: 1080 },
+  frameRate: { ideal: 30 }
+};
+
+const REAR_CAMERA_CONSTRAINTS = {
   audio: false,
   video: {
     facingMode: { exact: 'environment' },
-    width: { ideal: 1920 },
-    height: { ideal: 1080 },
-    frameRate: { ideal: 30 }
+    ...CAMERA_QUALITY
   }
 };
+
+const ANY_CAMERA_CONSTRAINTS = { audio: false, video: true };
 
 const PRODUCT_FORMATS = [
   BarcodeFormat.EAN_13,
@@ -31,6 +37,7 @@ const PRODUCT_FORMATS = [
 const NATIVE_PRODUCT_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'itf'];
 const DETECTION_DELAY_MS = 1800;
 const MAX_PRODUCT_CANDIDATES = 4;
+const canRetryWithAnyCamera = (error) => ['NotFoundError', 'OverconstrainedError'].includes(error?.name);
 
 const cameraErrorMessage = (error) => {
   if (error?.name === 'NotAllowedError') {
@@ -40,17 +47,34 @@ const cameraErrorMessage = (error) => {
     return 'La cámara está siendo usada por otra aplicación.';
   }
   if (['NotFoundError', 'OverconstrainedError'].includes(error?.name)) {
-    return 'No encontré una cámara trasera disponible.';
+    return 'No encontré una cámara disponible.';
   }
   return 'No pude abrir la cámara. Ingresá el código manualmente.';
 };
 
-const findExistingIngredient = (ingredients, barcode) => ingredients.find(
+const findIngredientsByBarcode = (ingredients, barcode) => ingredients.filter(
   (ingredient) => ingredient.barcode
     && canonicalizeBarcode(ingredient.barcode) === canonicalizeBarcode(barcode)
 );
 
-const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onScanNutritionLabel, onCancel }) => {
+const candidateIdentity = (candidate) => [
+  canonicalizeBarcode(candidate.barcode),
+  candidate.ingredient.name?.trim().toLocaleLowerCase(),
+  Number(candidate.ingredient.kcal) || 0,
+  Number(candidate.ingredient.protein) || 0,
+  Number(candidate.ingredient.carbs) || 0,
+  Number(candidate.ingredient.fat) || 0
+].join('|');
+
+const BarcodeScanner = ({
+  ingredients,
+  onAddIngredient,
+  onUpdateIngredient,
+  currentUserId,
+  onSelect,
+  onScanNutritionLabel,
+  onCancel
+}) => {
   const videoRef = useRef(null);
   const controlsRef = useRef(null);
   const abortRef = useRef(null);
@@ -58,7 +82,13 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onScanNutritio
   const detectedCodesRef = useRef(new Map());
   const scanFinalizedRef = useRef(false);
   const selectionLockRef = useRef(false);
-  const latestPropsRef = useRef({ ingredients, onAddIngredient, onSelect });
+  const latestPropsRef = useRef({
+    ingredients,
+    onAddIngredient,
+    onUpdateIngredient,
+    currentUserId,
+    onSelect
+  });
 
   const [manualCode, setManualCode] = useState('');
   const [cameraReady, setCameraReady] = useState(false);
@@ -70,8 +100,14 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onScanNutritio
   const [nutritionFallbackAvailable, setNutritionFallbackAvailable] = useState(false);
 
   useEffect(() => {
-    latestPropsRef.current = { ingredients, onAddIngredient, onSelect };
-  }, [ingredients, onAddIngredient, onSelect]);
+    latestPropsRef.current = {
+      ingredients,
+      onAddIngredient,
+      onUpdateIngredient,
+      currentUserId,
+      onSelect
+    };
+  }, [currentUserId, ingredients, onAddIngredient, onSelect, onUpdateIngredient]);
 
   const stopCamera = useCallback(() => {
     controlsRef.current?.stop();
@@ -88,9 +124,20 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onScanNutritio
 
     try {
       const currentProps = latestPropsRef.current;
-      const ingredient = candidate.existing
-        ? candidate.ingredient
-        : await currentProps.onAddIngredient(candidate.ingredient);
+      let ingredient;
+
+      if (candidate.existingIngredient && candidate.fromStoredIngredient) {
+        ingredient = candidate.existingIngredient;
+      } else if (candidate.existingIngredient && currentProps.onUpdateIngredient) {
+        ingredient = await currentProps.onUpdateIngredient(candidate.existingIngredient.id, {
+          ...candidate.ingredient,
+          isPublic: candidate.existingIngredient.isPublic,
+          sourceType: candidate.existingIngredient.sourceType || 'ingredient'
+        });
+      } else {
+        ingredient = await currentProps.onAddIngredient(candidate.ingredient);
+      }
+
       latestPropsRef.current.onSelect(ingredient);
     } catch (selectionError) {
       setError(selectionError?.message || 'No pude guardar el producto.');
@@ -121,23 +168,43 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onScanNutritio
 
     try {
       const resolved = await Promise.all(detectedCodes.map(async ({ barcode, count }) => {
-        const existing = findExistingIngredient(latestPropsRef.current.ingredients, barcode);
-        if (existing) return { barcode, count, ingredient: existing, existing: true };
+        const currentProps = latestPropsRef.current;
+        const storedIngredients = findIngredientsByBarcode(currentProps.ingredients, barcode);
+        const existingIngredient = storedIngredients.find(
+          (ingredient) => ingredient.userId === currentProps.currentUserId
+        );
+        const storedCandidates = storedIngredients.map((ingredient) => ({
+          barcode,
+          count,
+          ingredient: {
+            ...ingredient,
+            dataSource: ingredient.userId === currentProps.currentUserId
+              ? 'Mis ingredientes'
+              : 'Comunidad'
+          },
+          existingIngredient: ingredient,
+          fromStoredIngredient: true
+        }));
 
         try {
           const product = await lookupProductByBarcode(barcode, { signal: controller.signal });
-          return { barcode, count, ingredient: product, existing: false };
+          return [
+            { barcode, count, ingredient: product, existingIngredient },
+            ...storedCandidates
+          ];
         } catch (lookupError) {
+          if (storedCandidates.length > 0) return storedCandidates;
           if (!firstLookupError && lookupError?.name !== 'AbortError') firstLookupError = lookupError;
-          return null;
+          return [];
         }
       }));
 
       const uniqueCandidates = [...new Map(
         resolved
+          .flat()
           .filter(Boolean)
-          .map((candidate) => [canonicalizeBarcode(candidate.barcode), candidate])
-      ).values()];
+          .map((candidate) => [candidateIdentity(candidate), candidate])
+      ).values()].slice(0, MAX_PRODUCT_CANDIDATES);
 
       if (uniqueCandidates.length === 0) {
         throw firstLookupError || new Error('No encontré productos para los códigos detectados.');
@@ -194,65 +261,141 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onScanNutritio
     reader.possibleFormats = PRODUCT_FORMATS;
     setError('');
 
-    reader.decodeFromConstraints(CAMERA_CONSTRAINTS, videoRef.current, (result, scanError) => {
+    const handleDecode = (result, scanError) => {
       void scanError;
       if (result) recordDetectedBarcode(result.getText());
-    }).then(async (controls) => {
-      if (cancelled) {
-        controls.stop();
-        return;
-      }
+    };
 
-      controlsRef.current = controls;
-      setCameraReady(true);
-
-      const track = videoRef.current?.srcObject?.getVideoTracks?.()[0];
+    const openCamera = async () => {
       try {
-        const capabilities = track?.getCapabilities?.();
-        if (capabilities?.focusMode?.includes('continuous')) {
-          await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+        return await reader.decodeFromConstraints(
+          REAR_CAMERA_CONSTRAINTS,
+          videoRef.current,
+          handleDecode
+        );
+      } catch (rearCameraError) {
+        if (!canRetryWithAnyCamera(rearCameraError)) throw rearCameraError;
+
+        let defaultCameraError;
+        try {
+          return await reader.decodeFromConstraints(
+            ANY_CAMERA_CONSTRAINTS,
+            videoRef.current,
+            handleDecode
+          );
+        } catch (cameraError) {
+          defaultCameraError = cameraError;
         }
-      } catch {
-        // Some browsers expose focus capability but reject applying it.
-      }
 
-      const NativeBarcodeDetector = window.BarcodeDetector;
-      if (!NativeBarcodeDetector) return;
+        let videoDevices = [];
+        try {
+          videoDevices = await BrowserMultiFormatReader.listVideoInputDevices();
+        } catch {
+          // Some browsers do not expose device IDs before opening a camera.
+        }
 
-      try {
-        const supportedFormats = typeof NativeBarcodeDetector.getSupportedFormats === 'function'
-          ? await NativeBarcodeDetector.getSupportedFormats()
-          : NATIVE_PRODUCT_FORMATS;
-        const formats = NATIVE_PRODUCT_FORMATS.filter((format) => supportedFormats.includes(format));
-        const detector = formats.length
-          ? new NativeBarcodeDetector({ formats })
-          : new NativeBarcodeDetector();
+        const prioritizedDevices = [...videoDevices].sort((left, right) => {
+          const score = (device) => {
+            const label = device.label.toLocaleLowerCase();
+            if (/facetime|built-in|integrated|macbook/.test(label)) return 0;
+            if (/obs|virtual|desk view/.test(label)) return 2;
+            return 1;
+          };
+          return score(left) - score(right);
+        });
 
-        const scanNativeFrame = async () => {
-          if (cancelled || scanFinalizedRef.current || !videoRef.current) return;
-
+        let lastDeviceError;
+        for (const device of prioritizedDevices) {
+          if (!device.deviceId) continue;
           try {
-            const barcodes = await detector.detect(videoRef.current);
-            barcodes.forEach((barcode) => recordDetectedBarcode(barcode.rawValue));
-          } catch {
-            // ZXing remains active as fallback.
+            return await reader.decodeFromConstraints(
+              { audio: false, video: { deviceId: { exact: device.deviceId } } },
+              videoRef.current,
+              handleDecode
+            );
+          } catch (deviceError) {
+            lastDeviceError = deviceError;
           }
-
-          if (!cancelled && !scanFinalizedRef.current) {
-            nativeScanTimer = window.setTimeout(scanNativeFrame, 180);
-          }
-        };
-
-        void scanNativeFrame();
-      } catch {
-        // ZXing remains active when native BarcodeDetector setup fails.
+        }
+        throw lastDeviceError || defaultCameraError;
       }
-    }).catch((cameraError) => {
-      if (!cancelled) setError(cameraErrorMessage(cameraError));
-    });
+    };
+
+    const startCamera = () => {
+      openCamera().then(async (controls) => {
+        if (cancelled) {
+          controls.stop();
+          return;
+        }
+
+        controlsRef.current = controls;
+        try {
+          if (videoRef.current) {
+            videoRef.current.muted = true;
+            videoRef.current.setAttribute('playsinline', '');
+            await videoRef.current.play();
+          }
+        } catch (playError) {
+          controls.stop();
+          controlsRef.current = null;
+          throw playError;
+        }
+        setCameraReady(true);
+
+        const track = videoRef.current?.srcObject?.getVideoTracks?.()[0];
+        try {
+          const capabilities = track?.getCapabilities?.();
+          if (capabilities?.focusMode?.includes('continuous')) {
+            await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+          }
+        } catch {
+          // Some browsers expose focus capability but reject applying it.
+        }
+
+        const NativeBarcodeDetector = window.BarcodeDetector;
+        if (!NativeBarcodeDetector) return;
+
+        try {
+          const supportedFormats = typeof NativeBarcodeDetector.getSupportedFormats === 'function'
+            ? await NativeBarcodeDetector.getSupportedFormats()
+            : NATIVE_PRODUCT_FORMATS;
+          const formats = NATIVE_PRODUCT_FORMATS.filter((format) => supportedFormats.includes(format));
+          const detector = formats.length
+            ? new NativeBarcodeDetector({ formats })
+            : new NativeBarcodeDetector();
+
+          const scanNativeFrame = async () => {
+            if (cancelled || scanFinalizedRef.current || !videoRef.current) return;
+
+            try {
+              const barcodes = await detector.detect(videoRef.current);
+              barcodes.forEach((barcode) => recordDetectedBarcode(barcode.rawValue));
+            } catch {
+              // ZXing remains active as fallback.
+            }
+
+            if (!cancelled && !scanFinalizedRef.current) {
+              nativeScanTimer = window.setTimeout(scanNativeFrame, 180);
+            }
+          };
+
+          void scanNativeFrame();
+        } catch {
+          // ZXing remains active when native BarcodeDetector setup fails.
+        }
+      }).catch((cameraError) => {
+        if (!cancelled) {
+          setError(cameraErrorMessage(cameraError));
+          setNutritionFallbackAvailable(true);
+        }
+      });
+    };
+
+    const cameraStartTimer = window.setTimeout(startCamera, 0);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(cameraStartTimer);
       window.clearTimeout(nativeScanTimer);
       controlsRef.current?.stop();
       controlsRef.current = null;
@@ -324,47 +467,62 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onScanNutritio
         <div className={styles.candidateView}>
           <p>
             {productCandidates.length === 1
-              ? '¿Es este el producto correcto? Tocá para confirmarlo.'
-              : 'Detectamos varios productos. Elegí el correcto.'}
+              ? 'Revisá la foto y los valores. Solo se guarda si confirmás.'
+              : 'Detectamos varios productos. Revisalos y elegí el correcto.'}
           </p>
           <div className={styles.candidateList}>
             {productCandidates.map((candidate) => (
               <button
                 type="button"
-                key={canonicalizeBarcode(candidate.barcode)}
+                key={candidateIdentity(candidate)}
                 className={styles.candidateCard}
                 onClick={() => saveAndSelectProduct(candidate)}
                 disabled={isLookingUp}
               >
-                <span>
+                <span className={styles.candidateImage}>
+                  <Barcode size={23} />
+                  {candidate.ingredient.imageUrl && (
+                    <img
+                      src={candidate.ingredient.imageUrl}
+                      alt=""
+                      loading="lazy"
+                      onError={(event) => { event.currentTarget.hidden = true; }}
+                    />
+                  )}
+                </span>
+                <span className={styles.candidateInfo}>
                   <strong>{candidate.ingredient.name}</strong>
-                  <small>Código {normalizeBarcode(candidate.barcode)}</small>
+                  <small>
+                    {candidate.ingredient.dataSource || 'Producto guardado'} · Código {normalizeBarcode(candidate.barcode)}
+                  </small>
                 </span>
                 <span className={styles.candidateCalories}>
                   {Math.round(Number(candidate.ingredient.kcal) || 0)} kcal
                   <small>por 100 g</small>
                 </span>
-                <Check size={19} />
+                <span className={styles.candidateUse}>
+                  <Check size={16} /> Usar
+                </span>
               </button>
             ))}
           </div>
-          <button type="button" className={styles.retryBtn} onClick={retryCamera} disabled={isLookingUp}>
-            <RotateCcw size={16} /> Escanear de nuevo
-          </button>
           <button
             type="button"
             className={styles.nutritionBtn}
             onClick={openNutritionScanner}
             disabled={isLookingUp}
           >
-            <ScanText size={17} /> No es ninguno · escanear tabla nutricional
+            <ScanText size={18} /> No es correcto · fotografiar tabla nutricional
+          </button>
+          <button type="button" className={styles.retryBtn} onClick={retryCamera} disabled={isLookingUp}>
+            <RotateCcw size={16} /> Escanear otro código
           </button>
           {error && <div className={styles.error} role="status">{error}</div>}
         </div>
       ) : (
         <>
           <div className={styles.cameraFrame}>
-            <video ref={videoRef} className={styles.video} muted playsInline />
+            <video ref={videoRef} className={styles.video} autoPlay muted playsInline />
             <div className={styles.guide} aria-hidden="true">
               <span />
             </div>
