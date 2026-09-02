@@ -1,62 +1,166 @@
-import React, { useRef, useState } from 'react';
-import { Plus, Trash2, Layout, X } from 'lucide-react';
+import React, { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Barcode, Layout, Plus, Save, Trash2, X } from 'lucide-react';
 import IngredientPicker from './IngredientPicker';
 import { useTemplates } from '../../hooks/useTemplates';
+import { clearMealDraft, hasMealDraftContent, readMealDraft, writeMealDraft } from '../../lib/mealDrafts';
 import styles from './MealBuilder.module.css';
 
-const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
-  const [mealName, setMealName] = useState(initialMeal?.name || '');
-  const [selectedItems, setSelectedItems] = useState(() => {
-    if (!initialMeal || !allIngredients) return [];
-    return initialMeal.items.map(item => {
-      if (item.type === 'manual') {
-        return { ...item, instanceId: crypto.randomUUID() };
-      }
+const BarcodeScanner = lazy(() => import('./BarcodeScanner'));
 
-      const ing = allIngredients.find(i => i.id === item.ingredientId) || item.ingredient;
-      return {
-        ...ing,
+const EMPTY_MANUAL_ITEM = {
+  name: '',
+  kcal: '',
+  protein: '',
+  carbs: '',
+  fat: ''
+};
+
+const instanceId = () => crypto.randomUUID();
+
+const itemQuantity = (item, ingredient) => {
+  const quantity = Number(item.quantity);
+  if (Number.isFinite(quantity)) return quantity;
+  return ingredient.measureType === 'per_serving' ? 1 : 100;
+};
+
+const hydrateItems = (items = [], allIngredients = []) => (
+  items.map((item) => {
+    if (item.type === 'manual') {
+      return { ...item, instanceId: instanceId() };
+    }
+
+    const ing = allIngredients.find((ingredient) => ingredient.id === item.ingredientId)
+      || item.ingredient
+      || item;
+    return {
+      ...ing,
+      ingredientId: item.ingredientId || item.id,
+      quantity: itemQuantity(item, ing),
+      instanceId: instanceId()
+    };
+  }).filter((item) => Boolean(item.name))
+);
+
+const stateFromMeal = (initialMeal, allIngredients) => ({
+  mealName: initialMeal?.name || '',
+  selectedItems: hydrateItems(initialMeal?.items, allIngredients),
+  manualItem: EMPTY_MANUAL_ITEM,
+  saveAsTemplate: false,
+  restored: false
+});
+
+const getInitialState = (baseState, allIngredients, draftKey) => {
+  const draft = readMealDraft(draftKey);
+  if (!hasMealDraftContent(draft)) return baseState;
+
+  return {
+    mealName: draft.mealName,
+    selectedItems: hydrateItems(draft.selectedItems, allIngredients),
+    manualItem: { ...EMPTY_MANUAL_ITEM, ...draft.manualItem },
+    saveAsTemplate: Boolean(draft.saveAsTemplate),
+    restored: true
+  };
+};
+
+const draftSignature = (state) => JSON.stringify({
+  mealName: state.mealName,
+  selectedItems: state.selectedItems.map((item) => item.type === 'manual'
+    ? {
+        type: 'manual',
+        name: item.name,
+        kcal: item.kcal,
+        protein: item.protein,
+        carbs: item.carbs,
+        fat: item.fat
+      }
+    : {
         ingredientId: item.ingredientId,
-        quantity: item.quantity,
-        instanceId: crypto.randomUUID()
-      };
-    }).filter(item => !!item.name);
+        quantity: item.quantity
+      }),
+  manualItem: state.manualItem,
+  saveAsTemplate: state.saveAsTemplate
+});
+
+const MealBuilder = ({ onSave, onAddIngredient, initialMeal, allIngredients = [], draftKey }) => {
+  const [startingState] = useState(() => {
+    const baseState = stateFromMeal(initialMeal, allIngredients);
+    return {
+      baseState,
+      initialState: getInitialState(baseState, allIngredients, draftKey)
+    };
   });
+  const { baseState, initialState } = startingState;
+  const baseDraftSignature = draftSignature(baseState);
+  const [mealName, setMealName] = useState(initialState.mealName);
+  const [selectedItems, setSelectedItems] = useState(initialState.selectedItems);
+  const [draftRestored, setDraftRestored] = useState(initialState.restored);
+  const [scanNotice, setScanNotice] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
   const [isPicking, setIsPicking] = useState(false);
   const [isAddingManual, setIsAddingManual] = useState(false);
-  const [manualItem, setManualItem] = useState({
-    name: '',
-    kcal: '',
-    protein: '',
-    carbs: '',
-    fat: ''
-  });
+  const [manualItem, setManualItem] = useState(initialState.manualItem);
   const [isShowingTemplates, setIsShowingTemplates] = useState(false);
-  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const [saveAsTemplate, setSaveAsTemplate] = useState(initialState.saveAsTemplate);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const saveLockRef = useRef(false);
-  
+  const clearDraftOnUnmountRef = useRef(false);
+  const latestDraftRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const nextDraft = { mealName, selectedItems, manualItem, saveAsTemplate };
+    const hasChanges = draftSignature(nextDraft) !== baseDraftSignature;
+    latestDraftRef.current = { draft: nextDraft, hasChanges };
+    if (clearDraftOnUnmountRef.current) return;
+
+    if (hasChanges) {
+      writeMealDraft(draftKey, nextDraft);
+    } else {
+      clearMealDraft(draftKey);
+    }
+  }, [baseDraftSignature, draftKey, mealName, selectedItems, manualItem, saveAsTemplate]);
+
+  useEffect(() => () => {
+    if (!clearDraftOnUnmountRef.current && latestDraftRef.current?.hasChanges) {
+      writeMealDraft(draftKey, latestDraftRef.current.draft);
+    }
+  }, [draftKey]);
+
   const { templates, addTemplate, deleteTemplate } = useTemplates();
 
   const addItem = (ingredient) => {
-    // Add default quantity based on measure type
-    const defaultQty = ingredient.measureType === 'per_serving' ? 1 : 100;
-    setSelectedItems([...selectedItems, { 
-      ...ingredient, 
-      ingredientId: ingredient.id, 
-      quantity: defaultQty,
-      instanceId: crypto.randomUUID() 
-    }]);
+    const alreadyInMeal = selectedItems.some((item) => item.ingredientId === ingredient.id);
+    if (!alreadyInMeal) {
+      const defaultQty = ingredient.measureType === 'per_serving' ? 1 : 100;
+      setSelectedItems((current) => current.some((item) => item.ingredientId === ingredient.id)
+        ? current
+        : [...current, {
+            ...ingredient,
+            ingredientId: ingredient.id,
+            quantity: defaultQty,
+            instanceId: instanceId()
+          }]);
+    }
     setIsPicking(false);
+    return alreadyInMeal;
+  };
+
+  const addScannedItem = (ingredient, { existing = false } = {}) => {
+    const alreadyInMeal = addItem(ingredient);
+    setIsScanning(false);
+    setScanNotice(alreadyInMeal
+      ? `${ingredient.name} ya estaba en este plato.`
+      : existing
+        ? `${ingredient.name} ya estaba guardado y se agregó al plato.`
+        : `${ingredient.name} se guardó en ingredientes y se agregó al plato.`);
   };
 
   const removeItem = (instanceId) => {
-    setSelectedItems(selectedItems.filter(item => item.instanceId !== instanceId));
+    setSelectedItems((current) => current.filter((item) => item.instanceId !== instanceId));
   };
 
   const updateQuantity = (instanceId, qty) => {
-    setSelectedItems(selectedItems.map(item => 
+    setSelectedItems((current) => current.map((item) =>
       item.instanceId === instanceId ? { ...item, quantity: parseFloat(qty) || 0 } : item
     ));
   };
@@ -73,7 +177,7 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
       protein: Math.max(Number(manualItem.protein) || 0, 0),
       carbs: Math.max(Number(manualItem.carbs) || 0, 0),
       fat: Math.max(Number(manualItem.fat) || 0, 0),
-      instanceId: crypto.randomUUID()
+      instanceId: instanceId()
     };
 
     if (normalized.kcal === 0 && normalized.protein === 0 && normalized.carbs === 0 && normalized.fat === 0) {
@@ -81,7 +185,7 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
     }
 
     setSelectedItems((current) => [...current, normalized]);
-    setManualItem({ name: '', kcal: '', protein: '', carbs: '', fat: '' });
+    setManualItem({ ...EMPTY_MANUAL_ITEM });
     setIsAddingManual(false);
   };
 
@@ -123,6 +227,8 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
       }
 
       await onSave(mealData);
+      clearDraftOnUnmountRef.current = true;
+      clearMealDraft(draftKey);
     } catch {
       setSaveError('No pude guardar la comida. Revisá la conexión e intentá de nuevo.');
       setIsSaving(false);
@@ -132,22 +238,33 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
 
   const loadTemplate = (template) => {
     setMealName(template.name);
-    const newItems = template.items.map(item => {
-      if (item.type === 'manual') {
-        return { ...item, instanceId: crypto.randomUUID() };
-      }
-
-      const ing = allIngredients.find(i => i.id === item.ingredientId) || item.ingredient;
-      return {
-        ...ing,
-        ingredientId: item.ingredientId,
-        quantity: item.quantity,
-        instanceId: crypto.randomUUID()
-      };
-    }).filter(item => !!item.name);
-    setSelectedItems(newItems);
+    setSelectedItems(hydrateItems(template.items, allIngredients));
     setIsShowingTemplates(false);
   };
+
+  const discardDraft = () => {
+    clearMealDraft(draftKey);
+    setMealName(baseState.mealName);
+    setSelectedItems(baseState.selectedItems);
+    setManualItem({ ...EMPTY_MANUAL_ITEM });
+    setSaveAsTemplate(false);
+    setIsAddingManual(false);
+    setDraftRestored(false);
+    setScanNotice('');
+  };
+
+  if (isScanning) {
+    return (
+      <Suspense fallback={<div className={styles.scannerLoading}>Cargando escáner...</div>}>
+        <BarcodeScanner
+          ingredients={allIngredients}
+          onAddIngredient={onAddIngredient}
+          onSelect={addScannedItem}
+          onCancel={() => setIsScanning(false)}
+        />
+      </Suspense>
+    );
+  }
 
   if (isPicking) {
     return <IngredientPicker onSelect={addItem} onCancel={() => setIsPicking(false)} />;
@@ -194,6 +311,26 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
         </button>
       </div>
 
+      <div className={styles.draftNotice} role="status">
+        <Save size={16} />
+        <span>
+          {draftRestored
+            ? 'Borrador recuperado. Los cambios siguen guardándose automáticamente.'
+            : 'Borrador automático activo. Podés cerrar sin perder datos.'}
+        </span>
+        {draftRestored && (
+          <button type="button" onClick={discardDraft} disabled={isSaving}>
+            Descartar
+          </button>
+        )}
+      </div>
+
+      {scanNotice && (
+        <div className={styles.scanNotice} role="status">
+          {scanNotice}
+        </div>
+      )}
+
       <div className={styles.inputGroup}>
         <label className={styles.label}>Nombre de la comida</label>
         <input 
@@ -209,6 +346,17 @@ const MealBuilder = ({ onSave, initialMeal, allIngredients }) => {
         <div className={styles.sectionHeader}>
           <h3 className={styles.sectionTitle}>Contenido</h3>
           <div className={styles.addActions}>
+            <button
+              className={styles.scanBtn}
+              onClick={() => {
+                setScanNotice('');
+                setIsScanning(true);
+              }}
+              disabled={isSaving || !onAddIngredient}
+            >
+              <Barcode size={18} />
+              <span>Escanear</span>
+            </button>
             <button
               className={styles.manualBtn}
               onClick={() => setIsAddingManual((current) => !current)}

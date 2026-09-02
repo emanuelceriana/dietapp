@@ -44,7 +44,8 @@ Before using the frontend-only build:
 1. Open Supabase Dashboard.
 2. Open **SQL Editor**.
 3. Run [`supabase/migrations/202606220001_frontend_rls.sql`](supabase/migrations/202606220001_frontend_rls.sql).
-4. Confirm all five tables show RLS enabled:
+4. Run [`supabase/migrations/202609020001_ingredient_barcodes.sql`](supabase/migrations/202609020001_ingredient_barcodes.sql).
+5. Confirm all five tables show RLS enabled:
    - `profiles`
    - `weight_logs`
    - `ingredients`
@@ -52,7 +53,10 @@ Before using the frontend-only build:
    - `meal_templates`
 
 The migration preserves rows. It replaces existing policies for these app tables with the access
-model documented above.
+model documented above, then adds barcode metadata and duplicate protection to ingredients.
+
+Barcode scanning needs HTTPS outside localhost so browsers can grant camera access. Deployed Render
+static sites already meet this requirement.
 
 ## Validation
 

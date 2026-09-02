@@ -43,7 +43,7 @@ const HomePage = () => {
     deleteMeal
   } = useDayEntries(selectedDate);
   const activeDates = useAllEntryDates(selectedDate);
-  const { ingredients } = useIngredients();
+  const { ingredients, addIngredient } = useIngredients();
   const { recentMeals, isLoading: recentMealsLoading } = useRecentMeals(selectedDate);
   const { profile, isLoading: profileLoading, error: profileError, refresh: refreshProfile } = useProfile();
   const displayActiveDates = useMemo(() => {
@@ -157,6 +157,7 @@ const HomePage = () => {
   const handleDateSelect = (date) => {
     startDateTransition(() => setSelectedDate(date));
   };
+  const mealDraftKey = `${profile.id}:${formatDate(selectedDate)}:${editingMeal?.id || 'new'}`;
 
   return (
     <div className={styles.container}>
@@ -237,9 +238,12 @@ const HomePage = () => {
         title={editingMeal ? 'Editar Comida' : 'Nueva Comida'}
       >
         <MealBuilder 
+          key={mealDraftKey}
           onSave={handleSaveMeal} 
+          onAddIngredient={addIngredient}
           initialMeal={editingMeal} 
           allIngredients={ingredients}
+          draftKey={mealDraftKey}
         />
       </Modal>
     </div>

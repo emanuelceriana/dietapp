@@ -101,6 +101,7 @@ const toProfile = (row) => row && ({
 const toIngredient = (row) => row && ({
   id: row.id,
   name: row.name,
+  barcode: row.barcode,
   measureType: row.measure_type,
   kcal: numberOrNull(row.kcal),
   protein: numberOrNull(row.protein),
@@ -212,6 +213,7 @@ const handleProfile = async (user, method, body) => {
 const ingredientPayload = (body, userId) => ({
   user_id: userId,
   name: body.name,
+  barcode: body.barcode || null,
   measure_type: body.measureType,
   kcal: body.kcal,
   protein: body.protein,
@@ -228,11 +230,34 @@ const handleIngredients = async (user, method, body, id) => {
   if (method === 'GET') return getVisibleIngredients();
 
   if (method === 'POST') {
+    if (body.barcode) {
+      const existing = await supabase
+        .from('ingredients')
+        .select('*')
+        .eq('barcode', body.barcode)
+        .order('created_at')
+        .limit(1);
+      throwIfError(existing);
+      if (existing.data?.[0]) return toIngredient(existing.data[0]);
+    }
+
     const result = await supabase
       .from('ingredients')
       .insert(ingredientPayload(body, user.id))
       .select('*')
       .single();
+
+    if (result.error?.code === '23505' && body.barcode) {
+      const duplicate = await supabase
+        .from('ingredients')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('barcode', body.barcode)
+        .single();
+      throwIfError(duplicate);
+      return toIngredient(duplicate.data);
+    }
+
     throwIfError(result);
     return toIngredient(result.data);
   }

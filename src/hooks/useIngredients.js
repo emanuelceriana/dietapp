@@ -174,7 +174,10 @@ export function useIngredients() {
       body: JSON.stringify(ingredient)
     });
     const currentIngredients = readCache(userId)?.data || ingredients;
-    const nextIngredients = [...currentIngredients, newIngredient]
+    const nextIngredients = [
+      ...currentIngredients.filter((current) => current.id !== newIngredient.id),
+      newIngredient
+    ]
       .sort((a, b) => a.name.localeCompare(b.name));
     publishIngredients(userId, nextIngredients);
     return newIngredient;
