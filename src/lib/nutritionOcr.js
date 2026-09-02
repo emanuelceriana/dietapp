@@ -1,4 +1,11 @@
 const NUMBER_PATTERN = String.raw`(\d{1,4}(?:[.,]\d{1,2})?)`;
+// Tesseract commonly reads small “100 g” headings as 1O0 g, l00 q or 1009.
+// A slash followed by 100 is also accepted when the unit itself was lost.
+const PER_100_AMOUNT_PATTERN = String.raw`(?:1|l|i)[0o]{2}\s*(?:g(?:r)?|q|9|ml|m[li1])`;
+const PER_100_REFERENCE_PATTERN = new RegExp(
+  String.raw`(?:\b(?:per|por|na|w)\s*|[/\\|]\s*)${PER_100_AMOUNT_PATTERN}(?:\b|(?=\s|$))|[/\\|]\s*(?:1|l|i)[0o]{2}(?!\d)|\b${PER_100_AMOUNT_PATTERN}(?:\b|(?=\s|$))`,
+  'i'
+);
 
 const normalizeText = (value) => String(value || '')
   .toLocaleLowerCase()
@@ -21,7 +28,7 @@ const chooseMatch = (matches, preferredColumn) => {
 
 const findPreferredColumn = (lines) => {
   const portionPattern = /por(?:cion|cja)|serving/;
-  const per100Pattern = /100\s*(?:g|ml)\b/;
+  const per100Pattern = PER_100_REFERENCE_PATTERN;
 
   for (const line of lines) {
     const portionIndex = line.search(portionPattern);
@@ -34,7 +41,7 @@ const findPreferredColumn = (lines) => {
 };
 
 const findKcal = (lines, fullText, preferredColumn) => {
-  const energyLabel = /energia|energy|wartosc energetyczna|kalori|calori|brennwert/;
+  const energyLabel = /energia|energija|energy|wartosc energetyczna|energijska vrednost|kalori|calori|brennwert/;
   const kcalPattern = new RegExp(`${NUMBER_PATTERN}\\s*k\\s*cal\\b`, 'gi');
 
   for (const line of lines) {
@@ -82,12 +89,16 @@ export const parseNutritionText = (rawText) => {
       String.raw`\bproteins?\b`,
       String.raw`\bproteinas?\b`,
       String.raw`\bbialko\b`,
+      String.raw`\bproteini\b`,
+      String.raw`\bbeljakovine\b`,
       String.raw`\beiweiss\b`
     ], [], preferredColumn),
     carbs: findGrams(lines, [
       String.raw`\bcarbohydrates?\b`,
       String.raw`\bhidratos?(?: de carbono)?\b`,
       String.raw`\bweglowodany\b`,
+      String.raw`\bugljeni\s+hidrati\b`,
+      String.raw`\bogljikovi\s+hidrati\b`,
       String.raw`\bglucides?\b`,
       String.raw`\bkohlenhydrate\b`
     ], [], preferredColumn),
@@ -95,12 +106,16 @@ export const parseNutritionText = (rawText) => {
       String.raw`\bfats?\b`,
       String.raw`\bgrasas?\b`,
       String.raw`\btluszcz(?:e|u)?\b`,
+      String.raw`\bmasti\b`,
+      String.raw`\bmascobe\b`,
       String.raw`\blipides?\b`,
       String.raw`\bfett\b`
     ], [
       String.raw`nasycon`,
       String.raw`saturat`,
       String.raw`saturad`,
+      String.raw`zasic`,
+      String.raw`nasic`,
       String.raw`gesatt`
     ], preferredColumn)
   };
@@ -108,6 +123,6 @@ export const parseNutritionText = (rawText) => {
   return {
     ...values,
     detectedCount: Object.values(values).filter((value) => value !== null).length,
-    hasPer100Reference: /(?:per|por|na|w)\s*100\s*(?:g|ml)\b|100\s*(?:g|ml)\b/.test(normalized)
+    hasPer100Reference: PER_100_REFERENCE_PATTERN.test(normalized)
   };
 };
