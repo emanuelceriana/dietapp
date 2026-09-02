@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Barcode, Layout, Plus, Save, Trash2, X } from 'lucide-react';
+import { Barcode, Layout, Plus, Trash2, X } from 'lucide-react';
 import IngredientPicker from './IngredientPicker';
 import { useTemplates } from '../../hooks/useTemplates';
 import { clearMealDraft, hasMealDraftContent, readMealDraft, writeMealDraft } from '../../lib/mealDrafts';
@@ -45,8 +45,7 @@ const stateFromMeal = (initialMeal, allIngredients) => ({
   mealName: initialMeal?.name || '',
   selectedItems: hydrateItems(initialMeal?.items, allIngredients),
   manualItem: EMPTY_MANUAL_ITEM,
-  saveAsTemplate: false,
-  restored: false
+  saveAsTemplate: false
 });
 
 const getInitialState = (baseState, allIngredients, draftKey) => {
@@ -57,8 +56,7 @@ const getInitialState = (baseState, allIngredients, draftKey) => {
     mealName: draft.mealName,
     selectedItems: hydrateItems(draft.selectedItems, allIngredients),
     manualItem: { ...EMPTY_MANUAL_ITEM, ...draft.manualItem },
-    saveAsTemplate: Boolean(draft.saveAsTemplate),
-    restored: true
+    saveAsTemplate: Boolean(draft.saveAsTemplate)
   };
 };
 
@@ -93,7 +91,6 @@ const MealBuilder = ({ onSave, onAddIngredient, initialMeal, allIngredients = []
   const baseDraftSignature = draftSignature(baseState);
   const [mealName, setMealName] = useState(initialState.mealName);
   const [selectedItems, setSelectedItems] = useState(initialState.selectedItems);
-  const [draftRestored, setDraftRestored] = useState(initialState.restored);
   const [scanNotice, setScanNotice] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [isPicking, setIsPicking] = useState(false);
@@ -242,17 +239,6 @@ const MealBuilder = ({ onSave, onAddIngredient, initialMeal, allIngredients = []
     setIsShowingTemplates(false);
   };
 
-  const discardDraft = () => {
-    clearMealDraft(draftKey);
-    setMealName(baseState.mealName);
-    setSelectedItems(baseState.selectedItems);
-    setManualItem({ ...EMPTY_MANUAL_ITEM });
-    setSaveAsTemplate(false);
-    setIsAddingManual(false);
-    setDraftRestored(false);
-    setScanNotice('');
-  };
-
   if (isScanning) {
     return (
       <Suspense fallback={<div className={styles.scannerLoading}>Cargando escáner...</div>}>
@@ -309,20 +295,6 @@ const MealBuilder = ({ onSave, onAddIngredient, initialMeal, allIngredients = []
           <Layout size={18} />
           <span>Usar Plantilla</span>
         </button>
-      </div>
-
-      <div className={styles.draftNotice} role="status">
-        <Save size={16} />
-        <span>
-          {draftRestored
-            ? 'Borrador recuperado. Los cambios siguen guardándose automáticamente.'
-            : 'Borrador automático activo. Podés cerrar sin perder datos.'}
-        </span>
-        {draftRestored && (
-          <button type="button" onClick={discardDraft} disabled={isSaving}>
-            Descartar
-          </button>
-        )}
       </div>
 
       {scanNotice && (
