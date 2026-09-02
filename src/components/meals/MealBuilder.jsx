@@ -91,7 +91,6 @@ const MealBuilder = ({ onSave, onAddIngredient, initialMeal, allIngredients = []
   const baseDraftSignature = draftSignature(baseState);
   const [mealName, setMealName] = useState(initialState.mealName);
   const [selectedItems, setSelectedItems] = useState(initialState.selectedItems);
-  const [scanNotice, setScanNotice] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [isPicking, setIsPicking] = useState(false);
   const [isAddingManual, setIsAddingManual] = useState(false);
@@ -142,14 +141,9 @@ const MealBuilder = ({ onSave, onAddIngredient, initialMeal, allIngredients = []
     return alreadyInMeal;
   };
 
-  const addScannedItem = (ingredient, { existing = false } = {}) => {
-    const alreadyInMeal = addItem(ingredient);
+  const addScannedItem = (ingredient) => {
+    addItem(ingredient);
     setIsScanning(false);
-    setScanNotice(alreadyInMeal
-      ? `${ingredient.name} ya estaba en este plato.`
-      : existing
-        ? `${ingredient.name} ya estaba guardado y se agregó al plato.`
-        : `${ingredient.name} se guardó en ingredientes y se agregó al plato.`);
   };
 
   const removeItem = (instanceId) => {
@@ -297,12 +291,6 @@ const MealBuilder = ({ onSave, onAddIngredient, initialMeal, allIngredients = []
         </button>
       </div>
 
-      {scanNotice && (
-        <div className={styles.scanNotice} role="status">
-          {scanNotice}
-        </div>
-      )}
-
       <div className={styles.inputGroup}>
         <label className={styles.label}>Nombre de la comida</label>
         <input 
@@ -320,10 +308,7 @@ const MealBuilder = ({ onSave, onAddIngredient, initialMeal, allIngredients = []
           <div className={styles.addActions}>
             <button
               className={styles.scanBtn}
-              onClick={() => {
-                setScanNotice('');
-                setIsScanning(true);
-              }}
+              onClick={() => setIsScanning(true)}
               disabled={isSaving || !onAddIngredient}
             >
               <Barcode size={18} />

@@ -96,16 +96,6 @@
   cursor: not-allowed;
 }
 
-.scanNotice {
-  padding: 0.7rem 0.8rem;
-  color: var(--accent-primary);
-  background: var(--accent-soft);
-  border: 1px solid rgba(32, 164, 119, 0.18);
-  border-radius: var(--radius-sm);
-  font-size: 0.82rem;
-  font-weight: 600;
-}
-
 .manualForm {
   display: flex;
   flex-direction: column;

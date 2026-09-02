@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Barcode, Camera, Flashlight, Keyboard, RotateCcw, X } from 'lucide-react';
+import { Barcode, Camera, Check, Keyboard, RotateCcw, X } from 'lucide-react';
 import { BarcodeFormat, BrowserMultiFormatReader } from '@zxing/browser';
 import {
   canonicalizeBarcode,
@@ -9,17 +9,13 @@ import {
 } from '../../lib/barcodes';
 import styles from './BarcodeScanner.module.css';
 
-const CAMERA_QUALITY_CONSTRAINTS = {
-  width: { ideal: 1920 },
-  height: { ideal: 1080 },
-  frameRate: { ideal: 30 }
-};
-
 const CAMERA_CONSTRAINTS = {
   audio: false,
   video: {
-    ...CAMERA_QUALITY_CONSTRAINTS,
-    facingMode: { ideal: 'environment' }
+    facingMode: { exact: 'environment' },
+    width: { ideal: 1920 },
+    height: { ideal: 1080 },
+    frameRate: { ideal: 30 }
   }
 };
 
@@ -33,37 +29,8 @@ const PRODUCT_FORMATS = [
 ];
 
 const NATIVE_PRODUCT_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'itf'];
-const CAMERA_STORAGE_KEY = 'dietapp:preferred-camera:v1';
-
-const readPreferredCamera = () => {
-  try {
-    return window.localStorage.getItem(CAMERA_STORAGE_KEY) || '';
-  } catch {
-    return '';
-  }
-};
-
-const savePreferredCamera = (deviceId) => {
-  try {
-    if (deviceId) {
-      window.localStorage.setItem(CAMERA_STORAGE_KEY, deviceId);
-    } else {
-      window.localStorage.removeItem(CAMERA_STORAGE_KEY);
-    }
-  } catch {
-    // Camera selection still works for current session.
-  }
-};
-
-const constraintsForCamera = (deviceId) => deviceId
-  ? {
-      ...CAMERA_CONSTRAINTS,
-      video: {
-        ...CAMERA_QUALITY_CONSTRAINTS,
-        deviceId: { exact: deviceId }
-      }
-    }
-  : CAMERA_CONSTRAINTS;
+const DETECTION_DELAY_MS = 1800;
+const MAX_PRODUCT_CANDIDATES = 4;
 
 const cameraErrorMessage = (error) => {
   if (error?.name === 'NotAllowedError') {
@@ -72,26 +39,34 @@ const cameraErrorMessage = (error) => {
   if (error?.name === 'NotReadableError') {
     return 'La cámara está siendo usada por otra aplicación.';
   }
+  if (['NotFoundError', 'OverconstrainedError'].includes(error?.name)) {
+    return 'No encontré una cámara trasera disponible.';
+  }
   return 'No pude abrir la cámara. Ingresá el código manualmente.';
 };
+
+const findExistingIngredient = (ingredients, barcode) => ingredients.find(
+  (ingredient) => ingredient.barcode
+    && canonicalizeBarcode(ingredient.barcode) === canonicalizeBarcode(barcode)
+);
 
 const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) => {
   const videoRef = useRef(null);
   const controlsRef = useRef(null);
   const abortRef = useRef(null);
-  const scanHandledRef = useRef(false);
+  const detectionTimerRef = useRef(null);
+  const detectedCodesRef = useRef(new Map());
+  const scanFinalizedRef = useRef(false);
+  const selectionLockRef = useRef(false);
   const latestPropsRef = useRef({ ingredients, onAddIngredient, onSelect });
 
   const [manualCode, setManualCode] = useState('');
   const [cameraReady, setCameraReady] = useState(false);
+  const [isConfirmingDetection, setIsConfirmingDetection] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [error, setError] = useState('');
   const [scanSession, setScanSession] = useState(0);
-  const [cameras, setCameras] = useState([]);
-  const [selectedCameraId, setSelectedCameraId] = useState(readPreferredCamera);
-  const [activeCameraId, setActiveCameraId] = useState('');
-  const [torchAvailable, setTorchAvailable] = useState(false);
-  const [torchOn, setTorchOn] = useState(false);
+  const [productCandidates, setProductCandidates] = useState([]);
 
   useEffect(() => {
     latestPropsRef.current = { ingredients, onAddIngredient, onSelect };
@@ -101,62 +76,110 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) =>
     controlsRef.current?.stop();
     controlsRef.current = null;
     setCameraReady(false);
-    setTorchAvailable(false);
-    setTorchOn(false);
   }, []);
 
-  const findOrCreateIngredient = useCallback(async (rawCode) => {
-    const barcode = normalizeBarcode(rawCode);
-    if (!isValidProductBarcode(barcode)) {
-      setError('El código debe tener entre 8 y 14 dígitos.');
-      scanHandledRef.current = false;
-      return;
-    }
+  const saveAndSelectProduct = useCallback(async (candidate) => {
+    if (selectionLockRef.current) return;
 
-    setManualCode(barcode);
+    selectionLockRef.current = true;
+    setError('');
+    setIsLookingUp(true);
+
+    try {
+      const currentProps = latestPropsRef.current;
+      const ingredient = candidate.existing
+        ? candidate.ingredient
+        : await currentProps.onAddIngredient(candidate.ingredient);
+      latestPropsRef.current.onSelect(ingredient);
+    } catch (selectionError) {
+      setError(selectionError?.message || 'No pude guardar el producto.');
+      selectionLockRef.current = false;
+    } finally {
+      setIsLookingUp(false);
+    }
+  }, []);
+
+  const resolveDetectedProducts = useCallback(async () => {
+    if (scanFinalizedRef.current) return;
+
+    scanFinalizedRef.current = true;
+    setIsConfirmingDetection(false);
     setError('');
     setIsLookingUp(true);
     stopCamera();
 
-    try {
-      const currentProps = latestPropsRef.current;
-      const existing = currentProps.ingredients.find(
-        (ingredient) => ingredient.barcode
-          && canonicalizeBarcode(ingredient.barcode) === canonicalizeBarcode(barcode)
-      );
+    const detectedCodes = [...detectedCodesRef.current.values()]
+      .sort((left, right) => right.count - left.count)
+      .slice(0, MAX_PRODUCT_CANDIDATES);
 
-      if (existing) {
-        currentProps.onSelect(existing, { existing: true });
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    let firstLookupError;
+
+    try {
+      const resolved = await Promise.all(detectedCodes.map(async ({ barcode, count }) => {
+        const existing = findExistingIngredient(latestPropsRef.current.ingredients, barcode);
+        if (existing) return { barcode, count, ingredient: existing, existing: true };
+
+        try {
+          const product = await lookupProductByBarcode(barcode, { signal: controller.signal });
+          return { barcode, count, ingredient: product, existing: false };
+        } catch (lookupError) {
+          if (!firstLookupError && lookupError?.name !== 'AbortError') firstLookupError = lookupError;
+          return null;
+        }
+      }));
+
+      const uniqueCandidates = [...new Map(
+        resolved
+          .filter(Boolean)
+          .map((candidate) => [canonicalizeBarcode(candidate.barcode), candidate])
+      ).values()];
+
+      if (uniqueCandidates.length === 0) {
+        throw firstLookupError || new Error('No encontré productos para los códigos detectados.');
+      }
+
+      if (uniqueCandidates.length === 1) {
+        await saveAndSelectProduct(uniqueCandidates[0]);
         return;
       }
 
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-      const product = await lookupProductByBarcode(barcode, { signal: controller.signal });
-      const savedIngredient = await currentProps.onAddIngredient(product);
-      latestPropsRef.current.onSelect(savedIngredient, { existing: false });
+      setProductCandidates(uniqueCandidates);
     } catch (lookupError) {
       if (lookupError?.name !== 'AbortError') {
-        setError(lookupError?.message || 'No pude cargar el producto.');
+        setError(lookupError?.message || 'No pude cargar los productos detectados.');
       }
-      scanHandledRef.current = false;
+      scanFinalizedRef.current = false;
     } finally {
       setIsLookingUp(false);
     }
-  }, [stopCamera]);
+  }, [saveAndSelectProduct, stopCamera]);
 
-  const handleDetectedBarcode = useCallback((rawCode, controls) => {
-    if (scanHandledRef.current) return false;
+  const recordDetectedBarcode = useCallback((rawCode) => {
+    if (scanFinalizedRef.current) return false;
 
-    const detectedCode = normalizeBarcode(rawCode);
-    if (!isValidProductBarcode(detectedCode)) return false;
+    const barcode = normalizeBarcode(rawCode);
+    if (!isValidProductBarcode(barcode)) return false;
 
-    scanHandledRef.current = true;
-    controls?.stop();
-    void findOrCreateIngredient(detectedCode);
+    const key = canonicalizeBarcode(barcode);
+    const previous = detectedCodesRef.current.get(key);
+    detectedCodesRef.current.set(key, {
+      barcode,
+      count: (previous?.count || 0) + 1
+    });
+
+    if (!detectionTimerRef.current) {
+      setIsConfirmingDetection(true);
+      detectionTimerRef.current = window.setTimeout(() => {
+        detectionTimerRef.current = null;
+        void resolveDetectedProducts();
+      }, DETECTION_DELAY_MS);
+    }
+
     return true;
-  }, [findOrCreateIngredient]);
+  }, [resolveDetectedProducts]);
 
   useEffect(() => {
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -168,37 +191,24 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) =>
     let nativeScanTimer;
     const reader = new BrowserMultiFormatReader(undefined, {
       delayBetweenScanAttempts: 150,
-      delayBetweenScanSuccess: 1000
+      delayBetweenScanSuccess: 250
     });
     reader.possibleFormats = PRODUCT_FORMATS;
-    scanHandledRef.current = false;
     setError('');
 
-    reader.decodeFromConstraints(constraintsForCamera(selectedCameraId), videoRef.current, (result, _scanError, controls) => {
-      void _scanError;
-      if (result) handleDetectedBarcode(result.getText(), controls);
+    reader.decodeFromConstraints(CAMERA_CONSTRAINTS, videoRef.current, (result, scanError) => {
+      void scanError;
+      if (result) recordDetectedBarcode(result.getText());
     }).then(async (controls) => {
       if (cancelled) {
         controls.stop();
         return;
       }
+
       controlsRef.current = controls;
       setCameraReady(true);
-      setTorchAvailable(Boolean(controls.switchTorch));
 
       const track = videoRef.current?.srcObject?.getVideoTracks?.()[0];
-      const settings = track?.getSettings?.() || {};
-      if (settings.deviceId) setActiveCameraId(settings.deviceId);
-
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        if (!cancelled) {
-          setCameras(devices.filter((device) => device.kind === 'videoinput'));
-        }
-      } catch {
-        // Device selection is optional.
-      }
-
       try {
         const capabilities = track?.getCapabilities?.();
         if (capabilities?.focusMode?.includes('continuous')) {
@@ -221,17 +231,16 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) =>
           : new NativeBarcodeDetector();
 
         const scanNativeFrame = async () => {
-          if (cancelled || scanHandledRef.current || !videoRef.current) return;
+          if (cancelled || scanFinalizedRef.current || !videoRef.current) return;
 
           try {
             const barcodes = await detector.detect(videoRef.current);
-            const detected = barcodes.find((barcode) => isValidProductBarcode(barcode.rawValue));
-            if (detected && handleDetectedBarcode(detected.rawValue)) return;
+            barcodes.forEach((barcode) => recordDetectedBarcode(barcode.rawValue));
           } catch {
             // ZXing remains active as fallback.
           }
 
-          if (!cancelled && !scanHandledRef.current) {
+          if (!cancelled && !scanFinalizedRef.current) {
             nativeScanTimer = window.setTimeout(scanNativeFrame, 180);
           }
         };
@@ -241,14 +250,7 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) =>
         // ZXing remains active when native BarcodeDetector setup fails.
       }
     }).catch((cameraError) => {
-      if (cancelled) return;
-
-      if (selectedCameraId && ['NotFoundError', 'OverconstrainedError'].includes(cameraError?.name)) {
-        savePreferredCamera('');
-        setSelectedCameraId('');
-        return;
-      }
-      setError(cameraErrorMessage(cameraError));
+      if (!cancelled) setError(cameraErrorMessage(cameraError));
     });
 
     return () => {
@@ -257,50 +259,52 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) =>
       controlsRef.current?.stop();
       controlsRef.current = null;
     };
-  }, [handleDetectedBarcode, scanSession, selectedCameraId]);
+  }, [recordDetectedBarcode, scanSession]);
 
   useEffect(() => () => {
     abortRef.current?.abort();
+    window.clearTimeout(detectionTimerRef.current);
   }, []);
 
-  const handleManualSubmit = (event) => {
-    event.preventDefault();
-    if (isLookingUp) return;
-    scanHandledRef.current = true;
-    void findOrCreateIngredient(manualCode);
+  const resetScanner = () => {
+    abortRef.current?.abort();
+    window.clearTimeout(detectionTimerRef.current);
+    detectionTimerRef.current = null;
+    detectedCodesRef.current = new Map();
+    scanFinalizedRef.current = false;
+    selectionLockRef.current = false;
+    setProductCandidates([]);
+    setIsConfirmingDetection(false);
+    setIsLookingUp(false);
+    setError('');
   };
 
   const retryCamera = () => {
     stopCamera();
-    setError('');
+    resetScanner();
     setScanSession((current) => current + 1);
   };
 
-  const changeCamera = (event) => {
-    const deviceId = event.target.value;
-    stopCamera();
-    setActiveCameraId(deviceId);
-    setSelectedCameraId(deviceId);
-    savePreferredCamera(deviceId);
-  };
+  const handleManualSubmit = (event) => {
+    event.preventDefault();
+    if (isLookingUp) return;
 
-  const toggleTorch = async () => {
-    if (!controlsRef.current?.switchTorch) return;
-
-    try {
-      const nextValue = !torchOn;
-      await controlsRef.current.switchTorch(nextValue);
-      setTorchOn(nextValue);
-    } catch {
-      setTorchAvailable(false);
+    const barcode = normalizeBarcode(manualCode);
+    if (!isValidProductBarcode(barcode)) {
+      setError('El código debe tener entre 8 y 14 dígitos.');
+      return;
     }
+
+    resetScanner();
+    detectedCodesRef.current.set(canonicalizeBarcode(barcode), { barcode, count: 1 });
+    void resolveDetectedProducts();
   };
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <div>
-          <h3>Escanear producto</h3>
+          <h3>{productCandidates.length > 1 ? 'Elegí el producto' : 'Escanear producto'}</h3>
           <p>Datos nutricionales por 100 g</p>
         </div>
         <button type="button" onClick={onCancel} aria-label="Cerrar escáner">
@@ -308,83 +312,95 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) =>
         </button>
       </div>
 
-      <div className={styles.cameraFrame}>
-        <video ref={videoRef} className={styles.video} muted playsInline />
-        <div className={styles.guide} aria-hidden="true">
-          <span />
+      {productCandidates.length > 1 ? (
+        <div className={styles.candidateView}>
+          <p>Detectamos varios productos. Elegí el correcto:</p>
+          <div className={styles.candidateList}>
+            {productCandidates.map((candidate) => (
+              <button
+                type="button"
+                key={canonicalizeBarcode(candidate.barcode)}
+                className={styles.candidateCard}
+                onClick={() => saveAndSelectProduct(candidate)}
+                disabled={isLookingUp}
+              >
+                <span>
+                  <strong>{candidate.ingredient.name}</strong>
+                  <small>Código {normalizeBarcode(candidate.barcode)}</small>
+                </span>
+                <span className={styles.candidateCalories}>
+                  {Math.round(Number(candidate.ingredient.kcal) || 0)} kcal
+                  <small>por 100 g</small>
+                </span>
+                <Check size={19} />
+              </button>
+            ))}
+          </div>
+          <button type="button" className={styles.retryBtn} onClick={retryCamera} disabled={isLookingUp}>
+            <RotateCcw size={16} /> Escanear de nuevo
+          </button>
+          {error && <div className={styles.error} role="status">{error}</div>}
         </div>
-        {!cameraReady && !isLookingUp && !error && (
-          <div className={styles.cameraStatus}>
-            <Camera size={26} />
-            <span>Abriendo cámara...</span>
+      ) : (
+        <>
+          <div className={styles.cameraFrame}>
+            <video ref={videoRef} className={styles.video} muted playsInline />
+            <div className={styles.guide} aria-hidden="true">
+              <span />
+            </div>
+            {!cameraReady && !isLookingUp && !error && (
+              <div className={styles.cameraStatus}>
+                <Camera size={26} />
+                <span>Abriendo cámara trasera...</span>
+              </div>
+            )}
+            {isConfirmingDetection && !isLookingUp && (
+              <div className={styles.detectingStatus}>
+                <Check size={17} /> Código detectado · verificando...
+              </div>
+            )}
+            {isLookingUp && (
+              <div className={styles.cameraStatus}>
+                <Barcode size={28} />
+                <span>Buscando producto...</span>
+              </div>
+            )}
           </div>
-        )}
-        {isLookingUp && (
-          <div className={styles.cameraStatus}>
-            <Barcode size={28} />
-            <span>Buscando producto...</span>
-          </div>
-        )}
-      </div>
 
-      <p className={styles.hint}>Mantené las barras horizontales y acercalas hasta llenar el recuadro.</p>
+          <p className={styles.hint}>Mantené las barras horizontales y acercalas hasta llenar el recuadro.</p>
 
-      {(cameras.length > 1 || torchAvailable) && (
-        <div className={styles.cameraTools}>
-          {cameras.length > 1 && (
-            <label>
-              <Camera size={16} />
-              <select value={activeCameraId || selectedCameraId} onChange={changeCamera}>
-                {cameras.map((camera, index) => (
-                  <option key={camera.deviceId} value={camera.deviceId}>
-                    {camera.label || `Cámara ${index + 1}`}
-                  </option>
-                ))}
-              </select>
+          {error && (
+            <div className={styles.error} role="status">
+              <span>{error}</span>
+              <button type="button" onClick={retryCamera} disabled={isLookingUp}>
+                <RotateCcw size={15} /> Reintentar cámara
+              </button>
+            </div>
+          )}
+
+          <form className={styles.manualForm} onSubmit={handleManualSubmit}>
+            <label htmlFor="manual-barcode">
+              <Keyboard size={17} /> Código manual
             </label>
-          )}
-          {torchAvailable && (
-            <button type="button" onClick={toggleTorch} className={torchOn ? styles.toolActive : ''}>
-              <Flashlight size={16} /> {torchOn ? 'Apagar luz' : 'Encender luz'}
-            </button>
-          )}
-        </div>
+            <div>
+              <input
+                id="manual-barcode"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                value={manualCode}
+                onChange={(event) => setManualCode(normalizeBarcode(event.target.value))}
+                placeholder="Ej: 7791234567890"
+                maxLength={14}
+                disabled={isLookingUp}
+              />
+              <button type="submit" disabled={isLookingUp || !manualCode}>
+                Buscar
+              </button>
+            </div>
+          </form>
+        </>
       )}
-
-      {cameras.length > 1 && (
-        <p className={styles.cameraTip}>Si no enfoca, probá otra cámara de la lista.</p>
-      )}
-
-      {error && (
-        <div className={styles.error} role="status">
-          <span>{error}</span>
-          <button type="button" onClick={retryCamera} disabled={isLookingUp}>
-            <RotateCcw size={15} /> Reintentar cámara
-          </button>
-        </div>
-      )}
-
-      <form className={styles.manualForm} onSubmit={handleManualSubmit}>
-        <label htmlFor="manual-barcode">
-          <Keyboard size={17} /> Código manual
-        </label>
-        <div>
-          <input
-            id="manual-barcode"
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            value={manualCode}
-            onChange={(event) => setManualCode(normalizeBarcode(event.target.value))}
-            placeholder="Ej: 7791234567890"
-            maxLength={14}
-            disabled={isLookingUp}
-          />
-          <button type="submit" disabled={isLookingUp || !manualCode}>
-            Buscar
-          </button>
-        </div>
-      </form>
 
       <p className={styles.source}>Información provista por Open Food Facts.</p>
     </div>
