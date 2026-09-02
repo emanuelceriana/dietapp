@@ -1,13 +1,15 @@
 # Dietapp
 
-React nutrition tracker using Supabase Auth and Supabase Postgres directly from the browser.
-No application server is required.
+React nutrition tracker using Supabase Auth and Supabase Postgres from the browser, plus one
+authenticated Edge Function for nutrition-label analysis.
 
 ## Architecture
 
 - React + Vite frontend
 - Supabase Auth with Google OAuth
 - Supabase Data API for database reads and writes
+- Supabase Edge Function for protected Gemini API calls
+- Gemini 3.1 Flash-Lite for nutrition-label image extraction
 - PostgreSQL Row Level Security (RLS) for authorization
 - Render Static Site for hosting
 
@@ -58,6 +60,25 @@ model documented above, then adds barcode metadata and duplicate protection to i
 Barcode scanning needs HTTPS outside localhost so browsers can grant camera access. Deployed Render
 static sites already meet this requirement.
 
+## Gemini nutrition-label scanner
+
+The browser never receives the Gemini API key. Images are resized in the browser and sent through the
+authenticated `analyze-nutrition-label` Supabase Edge Function. The image is forwarded to Gemini for
+analysis and is not written to the app database.
+
+Create a Gemini API key in Google AI Studio, then configure and deploy the function:
+
+```sh
+npx supabase login
+npx supabase link --project-ref YOUR_SUPABASE_PROJECT_REF
+npx supabase secrets set GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+npx supabase functions deploy analyze-nutrition-label
+```
+
+Do not add `GEMINI_API_KEY` to `.env`, Render, or any `VITE_*` variable. Gemini free-tier quotas still
+apply; when the quota is exhausted, the scanner returns a retryable message instead of saving partial
+data.
+
 ## Validation
 
 ```sh
@@ -76,7 +97,7 @@ Build Command: npm install && npm run build
 Publish Directory: dist
 ```
 
-Set only:
+Set only these frontend variables in Render:
 
 ```text
 VITE_SUPABASE_URL

@@ -1,0 +1,5 @@
+project_id = "dietapp"
+
+[functions.analyze-nutrition-label]
+verify_jwt = true
+entrypoint = "./functions/analyze-nutrition-label/index.js"

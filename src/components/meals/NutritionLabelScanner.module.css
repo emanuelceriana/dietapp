@@ -185,22 +185,6 @@
   font-size: 0.72rem;
 }
 
-.progressTrack {
-  overflow: hidden;
-  width: min(230px, 80%);
-  height: 5px;
-  background: rgba(255, 255, 255, 0.18);
-  border-radius: var(--radius-full);
-}
-
-.progressTrack span {
-  display: block;
-  height: 100%;
-  background: var(--accent-primary);
-  border-radius: inherit;
-  transition: width 180ms ease;
-}
-
 .reviewForm {
   display: flex;
   flex-direction: column;

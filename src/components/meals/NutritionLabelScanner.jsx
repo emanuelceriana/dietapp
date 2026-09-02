@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Camera, ImagePlus, RotateCcw, ScanText, X } from 'lucide-react';
 import { canonicalizeBarcode, isValidProductBarcode, normalizeBarcode } from '../../lib/barcodes';
-import { parseNutritionText } from '../../lib/nutritionOcr';
+import { analyzeNutritionLabel } from '../../lib/nutritionLabelAi';
 import styles from './NutritionLabelScanner.module.css';
 
 const EMPTY_FORM = {
@@ -52,44 +52,6 @@ const cameraErrorMessage = (cameraError) => {
   return 'No pude abrir la cámara.';
 };
 
-const loadImage = (url) => new Promise((resolve, reject) => {
-  const image = new Image();
-  image.onload = () => resolve(image);
-  image.onerror = () => reject(new Error('No pude abrir la foto. Probá sacándola nuevamente.'));
-  image.src = url;
-});
-
-const prepareImage = async (url) => {
-  const image = await loadImage(url);
-  const maxDimension = 2400;
-  const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
-  const width = Math.max(1, Math.round(image.naturalWidth * scale));
-  const height = Math.max(1, Math.round(image.naturalHeight * scale));
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-
-  const context = canvas.getContext('2d', { willReadFrequently: true });
-  context.drawImage(image, 0, 0, width, height);
-
-  const pixels = context.getImageData(0, 0, width, height);
-  const contrast = 35;
-  const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
-
-  for (let index = 0; index < pixels.data.length; index += 4) {
-    const gray = (pixels.data[index] * 0.299)
-      + (pixels.data[index + 1] * 0.587)
-      + (pixels.data[index + 2] * 0.114);
-    const enhanced = Math.max(0, Math.min(255, factor * (gray - 128) + 128));
-    pixels.data[index] = enhanced;
-    pixels.data[index + 1] = enhanced;
-    pixels.data[index + 2] = enhanced;
-  }
-
-  context.putImageData(pixels, 0, 0);
-  return canvas;
-};
-
 const numericValue = (value) => {
   const parsed = Number(String(value).replace(',', '.'));
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
@@ -99,14 +61,12 @@ const NutritionLabelScanner = ({ barcode = '', onAddIngredient, onSelect, onBack
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
-  const workerRef = useRef(null);
   const previewUrlRef = useRef('');
   const requestRef = useRef(0);
   const mountedRef = useRef(true);
 
   const [previewUrl, setPreviewUrl] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [formData, setFormData] = useState(null);
   const [hasPer100Reference, setHasPer100Reference] = useState(true);
   const [readWarning, setReadWarning] = useState('');
@@ -121,7 +81,6 @@ const NutritionLabelScanner = ({ barcode = '', onAddIngredient, onSelect, onBack
     return () => {
       mountedRef.current = false;
       requestRef.current += 1;
-      void workerRef.current?.terminate();
       if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     };
   }, []);
@@ -231,53 +190,35 @@ const NutritionLabelScanner = ({ barcode = '', onAddIngredient, onSelect, onBack
     setFormData(null);
     setReadWarning('');
     setError('');
-    setProgress(0);
     setIsProcessing(true);
-    const imageUrl = replacePreview(file);
+    replacePreview(file);
 
-    let worker;
     try {
-      const canvas = await prepareImage(imageUrl);
-      const { createWorker, OEM } = await import('tesseract.js');
-      worker = await createWorker(['eng', 'spa', 'pol'], OEM.LSTM_ONLY, {
-        logger: (message) => {
-          if (mountedRef.current && requestRef.current === requestId && message.status === 'recognizing text') {
-            setProgress(Math.round((message.progress || 0) * 100));
-          }
-        }
-      });
-      workerRef.current = worker;
-
-      if (!mountedRef.current || requestRef.current !== requestId) {
-        await worker.terminate();
-        return;
-      }
-
-      const result = await worker.recognize(canvas);
-      const parsed = parseNutritionText(result.data.text);
+      const parsed = await analyzeNutritionLabel(file);
       if (!mountedRef.current || requestRef.current !== requestId) return;
 
       setFormData({
         ...EMPTY_FORM,
+        name: parsed.name || '',
         kcal: parsed.kcal ?? '',
         protein: parsed.protein ?? '',
         carbs: parsed.carbs ?? '',
         fat: parsed.fat ?? ''
       });
-      setHasPer100Reference(parsed.hasPer100Reference);
+      setHasPer100Reference(['per_100g', 'per_100ml'].includes(parsed.reference));
 
-      if (parsed.detectedCount === 0) {
-        setReadWarning('No pude leer los valores. Podés completarlos manualmente o sacar otra foto.');
-      } else if (parsed.detectedCount < 4) {
-        setReadWarning('Algunos valores no se pudieron leer. Completalos antes de guardar.');
+      const detectedCount = [parsed.kcal, parsed.protein, parsed.carbs, parsed.fat]
+        .filter((value) => value !== null && value !== undefined).length;
+      if (detectedCount === 0) {
+        setReadWarning('La IA no pudo leer los valores. Podés completarlos manualmente o sacar otra foto.');
+      } else if (detectedCount < 4) {
+        setReadWarning('La IA no pudo leer algunos valores. Completalos antes de guardar.');
       }
     } catch (processingError) {
       if (mountedRef.current && requestRef.current === requestId) {
         setError(processingError?.message || 'No pude leer la tabla. Probá con otra foto.');
       }
     } finally {
-      if (worker) await worker.terminate();
-      if (workerRef.current === worker) workerRef.current = null;
       if (mountedRef.current && requestRef.current === requestId) {
         setIsProcessing(false);
       }
@@ -364,12 +305,9 @@ const NutritionLabelScanner = ({ barcode = '', onAddIngredient, onSelect, onBack
 
   const takeAnotherPhoto = () => {
     requestRef.current += 1;
-    void workerRef.current?.terminate();
-    workerRef.current = null;
     setFormData(null);
     setReadWarning('');
     setError('');
-    setProgress(0);
     setCameraError('');
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     previewUrlRef.current = '';
@@ -452,11 +390,8 @@ const NutritionLabelScanner = ({ barcode = '', onAddIngredient, onSelect, onBack
           {isProcessing && (
             <div className={styles.processingOverlay}>
               <ScanText size={30} />
-              <strong>Leyendo tabla...</strong>
-              <div className={styles.progressTrack}>
-                <span style={{ width: `${progress}%` }} />
-              </div>
-              <small>{progress > 0 ? `${progress}%` : 'Preparando lector'}</small>
+              <strong>Analizando tabla con IA...</strong>
+              <small>Puede tardar unos segundos</small>
             </div>
           )}
         </div>
