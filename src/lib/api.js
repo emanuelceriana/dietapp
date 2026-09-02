@@ -185,6 +185,51 @@ const attachIngredientsToMeals = (meals, ingredients) => {
   }));
 };
 
+const entryHasLoggedNutrition = (entry) => (entry?.meals || []).some(
+  (meal) => (meal?.items || []).some((item) => {
+    if (item.type === 'manual') {
+      return ['kcal', 'protein', 'carbs', 'fat']
+        .some((field) => (Number(item[field]) || 0) > 0);
+    }
+
+    return (Number(item.quantity) || 0) > 0;
+  })
+);
+
+const getNutritionActivity = async (userId, url) => {
+  const pageSize = 1000;
+  const activeDays = [];
+  let offset = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = supabase
+      .from('day_entries')
+      .select('date,meals')
+      .eq('user_id', userId)
+      .order('date', { ascending: false })
+      .range(offset, offset + pageSize - 1);
+
+    const start = url.searchParams.get('start');
+    const end = url.searchParams.get('end');
+    if (start) query = query.gte('date', start);
+    if (end) query = query.lte('date', end);
+
+    const result = await query;
+    throwIfError(result);
+    const entries = result.data || [];
+
+    entries.forEach((entry) => {
+      if (entryHasLoggedNutrition(entry)) activeDays.push({ date: entry.date, active: true });
+    });
+
+    hasMore = entries.length === pageSize;
+    offset += pageSize;
+  }
+
+  return activeDays;
+};
+
 const handleProfile = async (user, method, body) => {
   if (method === 'GET') return ensureProfile(user);
   if (method !== 'PUT') throw new Error('Unsupported profile operation');
@@ -292,6 +337,10 @@ const handleIngredients = async (user, method, body, id) => {
 
 const handleEntries = async (user, method, body, url, date) => {
   if (method === 'GET') {
+    if (!date && url.searchParams.get('activity') === 'nutrition') {
+      return getNutritionActivity(user.id, url);
+    }
+
     const [ingredients, entryResult] = await Promise.all([
       getVisibleIngredients(),
       date

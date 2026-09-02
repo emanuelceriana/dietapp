@@ -10,7 +10,7 @@ import {
 } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Scale, Utensils } from 'lucide-react';
-import { useStats } from '../hooks/useStats';
+import { useNutritionActivity, useStats } from '../hooks/useStats';
 import { useProfile } from '../hooks/useProfile';
 import { useWeights } from '../hooks/useWeights';
 import { calculateTDEE } from '../utils/nutrition';
@@ -52,7 +52,10 @@ const StatsPage = () => {
     };
   }, [viewDate, period]);
 
-  const adherenceBaseDate = period === 'week' ? viewDate : new Date();
+  const adherenceBaseDate = useMemo(
+    () => (period === 'week' ? viewDate : new Date()),
+    [period, viewDate]
+  );
   const adherenceInterval = useMemo(() => ({
     start: startOfWeek(adherenceBaseDate, { weekStartsOn: 1 }),
     end: endOfWeek(adherenceBaseDate, { weekStartsOn: 1 })
@@ -60,7 +63,7 @@ const StatsPage = () => {
 
   const { data: nutritionData, isLoading: statsLoading } = useStats(currentInterval);
   const { data: adherenceNutritionData, isLoading: adherenceLoading } = useStats(adherenceInterval);
-  const { data: streakNutritionData } = useStats(30);
+  const { data: streakNutritionData } = useNutritionActivity();
   const { profile, isLoading: profileLoading, updateProfile } = useProfile();
   const { weights, addWeight, deleteWeight, isLoading: weightsLoading } = useWeights();
 

@@ -141,12 +141,8 @@ globalThis.Deno.serve(async (request) => {
             }],
             generationConfig: {
               maxOutputTokens: 350,
-              responseFormat: {
-                text: {
-                  mimeType: 'application/json',
-                  schema: nutritionSchema
-                }
-              }
+              responseMimeType: 'application/json',
+              responseJsonSchema: nutritionSchema
             }
           }),
           signal: controller.signal
@@ -161,6 +157,15 @@ globalThis.Deno.serve(async (request) => {
       console.error('Gemini API error', geminiResponse.status, geminiPayload?.error?.message);
       if (geminiResponse.status === 429) {
         return jsonResponse({ error: 'Se alcanzó el límite de Gemini. Probá nuevamente más tarde.' }, 429);
+      }
+      if ([401, 403].includes(geminiResponse.status)) {
+        return jsonResponse({ error: 'La clave de Gemini es inválida o no tiene acceso a la API.' }, 502);
+      }
+      if (geminiResponse.status === 404) {
+        return jsonResponse({ error: 'El modelo Gemini 3.1 Flash-Lite no está disponible para esta clave.' }, 502);
+      }
+      if (geminiResponse.status === 400) {
+        return jsonResponse({ error: 'Gemini rechazó el formato de la solicitud. Actualizá la función.' }, 502);
       }
       return jsonResponse({ error: 'Gemini no pudo analizar la imagen.' }, 502);
     }

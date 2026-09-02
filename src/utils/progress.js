@@ -34,10 +34,17 @@ export const getPendingWeightDates = (weights, baseDate, frequency = 3) => {
 
 export const calculateNutritionStreak = (dailyStats, anchorDate = new Date()) => {
   const daysByDate = new Map((dailyStats || []).map((day) => [day.date, day]));
+  const isActiveDay = (date) => {
+    const day = daysByDate.get(formatDate(date));
+    return day?.active === true || (day?.kcal || 0) > 0;
+  };
   let streak = 0;
   let cursor = anchorDate;
 
-  while ((daysByDate.get(formatDate(cursor))?.kcal || 0) > 0) {
+  // A streak remains current until the present day ends, even before today's first meal.
+  if (!isActiveDay(cursor)) cursor = subDays(cursor, 1);
+
+  while (isActiveDay(cursor)) {
     streak += 1;
     cursor = subDays(cursor, 1);
   }

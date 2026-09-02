@@ -127,3 +127,44 @@ export function useStats(range = 7) {
     isLoading
   };
 }
+
+export function useNutritionActivity() {
+  const { user } = useAuth();
+  const endStr = formatDate(new Date());
+  const endpoint = `/entries?activity=nutrition&end=${endStr}`;
+  const cachedActivity = useMemo(
+    () => getApiCache(user?.id, endpoint, STATS_CACHE_TTL_MS),
+    [endpoint, user?.id]
+  );
+  const [activity, setActivity] = useState(() => cachedActivity || []);
+  const [isLoading, setIsLoading] = useState(() => !cachedActivity);
+
+  const fetchActivity = useCallback(async () => {
+    const cached = getApiCache(user?.id, endpoint, STATS_CACHE_TTL_MS);
+    if (cached) {
+      setActivity(cached);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const entries = await apiFetch(endpoint, { cacheTtlMs: STATS_CACHE_TTL_MS });
+      setActivity(entries);
+    } catch (err) {
+      console.error('Error fetching nutrition activity:', err);
+      setActivity([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [endpoint, user?.id]);
+
+  useEffect(() => {
+    fetchActivity();
+  }, [fetchActivity]);
+
+  return {
+    data: activity,
+    isLoading
+  };
+}
