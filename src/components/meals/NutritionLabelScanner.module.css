@@ -1,0 +1,265 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.header {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
+  align-items: start;
+  gap: 0.7rem;
+}
+
+.header > button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.header > button:last-child {
+  justify-self: end;
+}
+
+.header h3 {
+  font-size: 1.05rem;
+}
+
+.header p,
+.captureView p,
+.reviewHeading p {
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+}
+
+.fileInput {
+  display: none;
+}
+
+.captureView {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem 1.25rem;
+  text-align: center;
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border-medium);
+  border-radius: var(--radius-md);
+}
+
+.captureView h4,
+.reviewHeading h4 {
+  margin-bottom: 0.25rem;
+  font-size: 0.95rem;
+}
+
+.captureIcon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  color: var(--accent-primary);
+  background: var(--accent-soft);
+  border-radius: 50%;
+}
+
+.primaryButton,
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  font-weight: 750;
+}
+
+.primaryButton {
+  width: 100%;
+  color: white;
+  background: var(--accent-primary);
+}
+
+.secondaryButton {
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.reviewHeading button:disabled {
+  opacity: 0.5;
+}
+
+.previewFrame {
+  position: relative;
+  overflow: hidden;
+  min-height: 230px;
+  max-height: 360px;
+  background: #07100d;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+}
+
+.previewFrame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 230px;
+  max-height: 360px;
+  object-fit: contain;
+}
+
+.processingOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 1.5rem;
+  color: white;
+  background: rgba(7, 16, 13, 0.86);
+}
+
+.processingOverlay strong {
+  font-size: 0.92rem;
+}
+
+.processingOverlay small {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+}
+
+.progressTrack {
+  overflow: hidden;
+  width: min(230px, 80%);
+  height: 5px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-full);
+}
+
+.progressTrack span {
+  display: block;
+  height: 100%;
+  background: var(--accent-primary);
+  border-radius: inherit;
+  transition: width 180ms ease;
+}
+
+.reviewForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.reviewHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.reviewHeading button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0;
+  color: var(--accent-primary);
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.warning,
+.error {
+  padding: 0.75rem 0.8rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+}
+
+.warning {
+  color: #d49a25;
+  background: rgba(212, 154, 37, 0.08);
+  border: 1px solid rgba(212, 154, 37, 0.22);
+}
+
+.error {
+  color: #ffb4a2;
+  background: rgba(225, 112, 85, 0.08);
+  border: 1px solid rgba(225, 112, 85, 0.24);
+}
+
+.nameField,
+.nutrientsGrid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.nameField > span,
+.nutrientsGrid label > span {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.nameField input,
+.nutrientsGrid input {
+  min-width: 0;
+  width: 100%;
+  padding: 0.75rem;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  outline: none;
+  font-size: 1rem;
+}
+
+.nameField input:focus,
+.nutrientsGrid input:focus {
+  border-color: var(--accent-primary);
+}
+
+.nutrientsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.nutrientsGrid label > div {
+  position: relative;
+}
+
+.nutrientsGrid input {
+  padding-right: 2.8rem;
+}
+
+.nutrientsGrid small {
+  position: absolute;
+  top: 50%;
+  right: 0.7rem;
+  color: var(--text-tertiary);
+  transform: translateY(-50%);
+  font-size: 0.72rem;
+}
+
+@media (max-width: 420px) {
+  .nutrientsGrid {
+    gap: 0.65rem;
+  }
+
+  .reviewHeading {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}
+

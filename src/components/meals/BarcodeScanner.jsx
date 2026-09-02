@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Barcode, Camera, Check, Keyboard, RotateCcw, X } from 'lucide-react';
+import { Barcode, Camera, Check, Keyboard, RotateCcw, ScanText, X } from 'lucide-react';
 import { BarcodeFormat, BrowserMultiFormatReader } from '@zxing/browser';
 import {
   canonicalizeBarcode,
@@ -50,7 +50,7 @@ const findExistingIngredient = (ingredients, barcode) => ingredients.find(
     && canonicalizeBarcode(ingredient.barcode) === canonicalizeBarcode(barcode)
 );
 
-const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) => {
+const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onScanNutritionLabel, onCancel }) => {
   const videoRef = useRef(null);
   const controlsRef = useRef(null);
   const abortRef = useRef(null);
@@ -67,6 +67,7 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) =>
   const [error, setError] = useState('');
   const [scanSession, setScanSession] = useState(0);
   const [productCandidates, setProductCandidates] = useState([]);
+  const [nutritionFallbackAvailable, setNutritionFallbackAvailable] = useState(false);
 
   useEffect(() => {
     latestPropsRef.current = { ingredients, onAddIngredient, onSelect };
@@ -105,6 +106,7 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) =>
     scanFinalizedRef.current = true;
     setIsConfirmingDetection(false);
     setError('');
+    setNutritionFallbackAvailable(false);
     setIsLookingUp(true);
     stopCamera();
 
@@ -141,21 +143,17 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) =>
         throw firstLookupError || new Error('No encontré productos para los códigos detectados.');
       }
 
-      if (uniqueCandidates.length === 1) {
-        await saveAndSelectProduct(uniqueCandidates[0]);
-        return;
-      }
-
       setProductCandidates(uniqueCandidates);
     } catch (lookupError) {
       if (lookupError?.name !== 'AbortError') {
         setError(lookupError?.message || 'No pude cargar los productos detectados.');
+        setNutritionFallbackAvailable(true);
       }
       scanFinalizedRef.current = false;
     } finally {
       setIsLookingUp(false);
     }
-  }, [saveAndSelectProduct, stopCamera]);
+  }, [stopCamera]);
 
   const recordDetectedBarcode = useCallback((rawCode) => {
     if (scanFinalizedRef.current) return false;
@@ -277,6 +275,7 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) =>
     setIsConfirmingDetection(false);
     setIsLookingUp(false);
     setError('');
+    setNutritionFallbackAvailable(false);
   };
 
   const retryCamera = () => {
@@ -292,6 +291,7 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) =>
     const barcode = normalizeBarcode(manualCode);
     if (!isValidProductBarcode(barcode)) {
       setError('El código debe tener entre 8 y 14 dígitos.');
+      setNutritionFallbackAvailable(false);
       return;
     }
 
@@ -300,11 +300,19 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) =>
     void resolveDetectedProducts();
   };
 
+  const openNutritionScanner = () => {
+    const detectedCodes = [...detectedCodesRef.current.values()];
+    const detectedBarcode = detectedCodes.length === 1 ? detectedCodes[0].barcode : '';
+    const barcode = isValidProductBarcode(manualCode) ? manualCode : detectedBarcode;
+    stopCamera();
+    onScanNutritionLabel(barcode);
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <div>
-          <h3>{productCandidates.length > 1 ? 'Elegí el producto' : 'Escanear producto'}</h3>
+          <h3>{productCandidates.length > 0 ? 'Confirmá el producto' : 'Escanear producto'}</h3>
           <p>Datos nutricionales por 100 g</p>
         </div>
         <button type="button" onClick={onCancel} aria-label="Cerrar escáner">
@@ -312,9 +320,13 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) =>
         </button>
       </div>
 
-      {productCandidates.length > 1 ? (
+      {productCandidates.length > 0 ? (
         <div className={styles.candidateView}>
-          <p>Detectamos varios productos. Elegí el correcto:</p>
+          <p>
+            {productCandidates.length === 1
+              ? '¿Es este el producto correcto? Tocá para confirmarlo.'
+              : 'Detectamos varios productos. Elegí el correcto.'}
+          </p>
           <div className={styles.candidateList}>
             {productCandidates.map((candidate) => (
               <button
@@ -338,6 +350,14 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) =>
           </div>
           <button type="button" className={styles.retryBtn} onClick={retryCamera} disabled={isLookingUp}>
             <RotateCcw size={16} /> Escanear de nuevo
+          </button>
+          <button
+            type="button"
+            className={styles.nutritionBtn}
+            onClick={openNutritionScanner}
+            disabled={isLookingUp}
+          >
+            <ScanText size={17} /> No es ninguno · escanear tabla nutricional
           </button>
           {error && <div className={styles.error} role="status">{error}</div>}
         </div>
@@ -372,9 +392,16 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) =>
           {error && (
             <div className={styles.error} role="status">
               <span>{error}</span>
-              <button type="button" onClick={retryCamera} disabled={isLookingUp}>
-                <RotateCcw size={15} /> Reintentar cámara
-              </button>
+              <div className={styles.errorActions}>
+                <button type="button" onClick={retryCamera} disabled={isLookingUp}>
+                  <RotateCcw size={15} /> Reintentar cámara
+                </button>
+                {nutritionFallbackAvailable && (
+                  <button type="button" onClick={openNutritionScanner} disabled={isLookingUp}>
+                    <ScanText size={15} /> Escanear tabla nutricional
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -399,6 +426,7 @@ const BarcodeScanner = ({ ingredients, onAddIngredient, onSelect, onCancel }) =>
               </button>
             </div>
           </form>
+
         </>
       )}
 

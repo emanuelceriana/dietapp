@@ -6,6 +6,7 @@ import { clearMealDraft, hasMealDraftContent, readMealDraft, writeMealDraft } fr
 import styles from './MealBuilder.module.css';
 
 const BarcodeScanner = lazy(() => import('./BarcodeScanner'));
+const NutritionLabelScanner = lazy(() => import('./NutritionLabelScanner'));
 
 const EMPTY_MANUAL_ITEM = {
   name: '',
@@ -91,7 +92,8 @@ const MealBuilder = ({ onSave, onAddIngredient, initialMeal, allIngredients = []
   const baseDraftSignature = draftSignature(baseState);
   const [mealName, setMealName] = useState(initialState.mealName);
   const [selectedItems, setSelectedItems] = useState(initialState.selectedItems);
-  const [isScanning, setIsScanning] = useState(false);
+  const [scanMode, setScanMode] = useState(null);
+  const [nutritionBarcode, setNutritionBarcode] = useState('');
   const [isPicking, setIsPicking] = useState(false);
   const [isAddingManual, setIsAddingManual] = useState(false);
   const [manualItem, setManualItem] = useState(initialState.manualItem);
@@ -143,7 +145,7 @@ const MealBuilder = ({ onSave, onAddIngredient, initialMeal, allIngredients = []
 
   const addScannedItem = (ingredient) => {
     addItem(ingredient);
-    setIsScanning(false);
+    setScanMode(null);
   };
 
   const removeItem = (instanceId) => {
@@ -233,14 +235,32 @@ const MealBuilder = ({ onSave, onAddIngredient, initialMeal, allIngredients = []
     setIsShowingTemplates(false);
   };
 
-  if (isScanning) {
+  if (scanMode === 'nutrition') {
+    return (
+      <Suspense fallback={<div className={styles.scannerLoading}>Cargando lector...</div>}>
+        <NutritionLabelScanner
+          barcode={nutritionBarcode}
+          onAddIngredient={onAddIngredient}
+          onSelect={addScannedItem}
+          onBack={() => setScanMode('barcode')}
+          onCancel={() => setScanMode(null)}
+        />
+      </Suspense>
+    );
+  }
+
+  if (scanMode === 'barcode') {
     return (
       <Suspense fallback={<div className={styles.scannerLoading}>Cargando escáner...</div>}>
         <BarcodeScanner
           ingredients={allIngredients}
           onAddIngredient={onAddIngredient}
           onSelect={addScannedItem}
-          onCancel={() => setIsScanning(false)}
+          onScanNutritionLabel={(barcode) => {
+            setNutritionBarcode(barcode);
+            setScanMode('nutrition');
+          }}
+          onCancel={() => setScanMode(null)}
         />
       </Suspense>
     );
@@ -308,7 +328,10 @@ const MealBuilder = ({ onSave, onAddIngredient, initialMeal, allIngredients = []
           <div className={styles.addActions}>
             <button
               className={styles.scanBtn}
-              onClick={() => setIsScanning(true)}
+              onClick={() => {
+                setNutritionBarcode('');
+                setScanMode('barcode');
+              }}
               disabled={isSaving || !onAddIngredient}
             >
               <Barcode size={18} />
